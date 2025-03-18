@@ -25,7 +25,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ userName, companyName }) => {
 
   const handleSignOut = () => {
     // Clear auth state
-    setAuthState(false, null, null);
+    setAuthState(false, null, null, null);
     
     // Clear local storage
     localStorage.removeItem('token');

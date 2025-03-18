@@ -82,11 +82,11 @@ const SecondTable = () => {
             ) : (
               data.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell>{row.list_name}</TableCell>
+                  <TableCell>{row.listName}</TableCell>
                   <TableCell>{row.total_batches || 0}</TableCell>
                   <TableCell>{row.processed_batches || 0}</TableCell>
                   <TableCell>{formatDate(row.last_processed_at)}</TableCell>
-                  <TableCell>{formatDate(row.created_at)}</TableCell>
+                  <TableCell>{formatDate(row.createdAt)}</TableCell>
                 </TableRow>
               ))
             )}

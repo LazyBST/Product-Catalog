@@ -3,7 +3,16 @@ const pool = require('../db');
 // Get products by product list ID
 const getProductsByListId = async (req, res) => {
   try {
-    const companyId = req.user.companyId; // Extract company ID from JWT token
+    // Get companyId from query parameter for public access instead of JWT token
+    const companyId = req.user?.companyId || req.query.company_id;
+    
+    if (!companyId) {
+      return res.status(400).json({
+        success: false,
+        errMsg: 'Company ID is required'
+      });
+    }
+    
     const productListId = parseInt(req.params.productListId, 10);
     
     if (isNaN(productListId)) {
@@ -31,7 +40,7 @@ const getProductsByListId = async (req, res) => {
     const customFilters = {};
     for (const [key, value] of Object.entries(req.query)) {
       // Only consider params that are not already processed and look like custom field filters
-      if (!['page', 'limit', 'name', 'hasImage', 'brand', 'createdFrom', 'createdTo', 'sortField', 'sortOrder'].includes(key) && value) {
+      if (!['page', 'limit', 'name', 'hasImage', 'brand', 'createdFrom', 'createdTo', 'sortField', 'sortOrder', 'company_id'].includes(key) && value) {
         customFilters[key] = value;
       }
     }
@@ -575,7 +584,16 @@ const getProductListAttributes = async (req, res) => {
 // Get a single product by ID
 const getProductById = async (req, res) => {
   try {
-    const companyId = req.user.companyId; // Extract company ID from JWT token
+    // Get companyId from query parameter for public access instead of JWT token
+    const companyId = req.user?.companyId || req.query.company_id;
+    
+    if (!companyId) {
+      return res.status(400).json({
+        success: false,
+        errMsg: 'Company ID is required'
+      });
+    }
+    
     const productListId = parseInt(req.params.productListId, 10);
     const productId = parseInt(req.params.productId, 10);
     
@@ -586,12 +604,20 @@ const getProductById = async (req, res) => {
       });
     }
     
-    // Get product data
+    // Query to get product details
     const query = `
-      SELECT p.*, pv.data as attribute_values
-      FROM products p
-      LEFT JOIN product_ai_field_values pv ON p.id = pv.product_id
-      WHERE p.company_id = $1 AND p.product_list_id = $2 AND p.id = $3 AND p.is_deleted = FALSE
+      SELECT 
+        p.*,
+        pv.data as attribute_values
+      FROM 
+        products p
+      LEFT JOIN 
+        product_ai_field_values pv ON p.id = pv.product_id
+      WHERE 
+        p.company_id = $1 AND 
+        p.product_list_id = $2 AND 
+        p.id = $3 AND
+        p.is_deleted = FALSE
     `;
     
     const result = await pool.query(query, [companyId, productListId, productId]);
@@ -603,10 +629,17 @@ const getProductById = async (req, res) => {
       });
     }
     
-    // Return the product data
+    const product = result.rows[0];
+    
+    // Parse JSON data if it's a string
+    if (product.attribute_values && typeof product.attribute_values === 'string') {
+      product.attribute_values = JSON.parse(product.attribute_values);
+    }
+    
     res.json({
       success: true,
-      data: result.rows[0]
+      data: product,
+      errMsg: null
     });
   } catch (error) {
     console.error('Error getting product:', error);
@@ -620,7 +653,16 @@ const getProductById = async (req, res) => {
 // Update product
 const updateProduct = async (req, res) => {
   try {
-    const companyId = req.user.companyId; // Extract company ID from JWT token
+    // Get companyId from query parameter for public access instead of JWT token
+    const companyId = req.user?.companyId || req.query.company_id;
+    
+    if (!companyId) {
+      return res.status(400).json({
+        success: false,
+        errMsg: 'Company ID is required'
+      });
+    }
+    
     const productListId = parseInt(req.params.productListId, 10);
     const productId = parseInt(req.params.productId, 10);
     
@@ -732,7 +774,16 @@ const updateProduct = async (req, res) => {
 // Create product
 const createProduct = async (req, res) => {
   try {
-    const companyId = req.user.companyId; // Extract company ID from JWT token
+    // Get companyId from query parameter for public access instead of JWT token
+    const companyId = req.user?.companyId || req.query.company_id;
+    
+    if (!companyId) {
+      return res.status(400).json({
+        success: false,
+        errMsg: 'Company ID is required'
+      });
+    }
+    
     const productListId = parseInt(req.params.productListId, 10);
     
     if (isNaN(productListId)) {

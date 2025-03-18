@@ -27,7 +27,7 @@ export function useAuth() {
           name: localStorage.getItem('userName') || '',
           companyId: Number(localStorage.getItem('companyId') || 0),
           company_name: localStorage.getItem('companyName') || '',
-          user_type: localStorage.getItem('userType') || 'admin'
+          user_type: localStorage.getItem('userType') || 'COMPANY_USER'
         };
         
         setUser(userData);

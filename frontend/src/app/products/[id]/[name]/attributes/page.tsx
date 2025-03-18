@@ -34,15 +34,16 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import api, { Attribute, AttributeCreateRequest, AttributeUpdateRequest, ApiResponse } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function AttributesPage() {
   const params = useParams();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const productListId = Number(params.id);
-  const productListName = decodeURIComponent(params.name as string);
+  const router = useRouter();
+  const { isLoggedIn } = useAuth();
   
+  // Define all state hooks at the top level, regardless of auth status
   const [tabValue, setTabValue] = useState(0);
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [systemAttributes, setSystemAttributes] = useState<Attribute[]>([]);
@@ -53,15 +54,40 @@ export default function AttributesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-
-  // Load attributes from API
+  const [companyId, setCompanyId] = useState<number | undefined>(undefined);
+  
+  // Get product list info from params
+  const productListId = Number(params.id);
+  const productListName = decodeURIComponent(params.name as string);
+  
+  // Get company ID from localStorage
   useEffect(() => {
+    if (isLoggedIn) {
+      const storedCompanyId = localStorage.getItem('companyId');
+      if (storedCompanyId) {
+        setCompanyId(Number(storedCompanyId));
+        console.log('Using company ID from authenticated user:', storedCompanyId);
+      }
+    }
+  }, [isLoggedIn]);
+  
+  // Redirect to products page if user is not authenticated
+  useEffect(() => {
+    if (!isLoggedIn) {
+      router.push(`/products/${params.id}/${params.name}`);
+    }
+  }, [isLoggedIn, router, params.id, params.name]);
+  
+  // Load attributes from API only when logged in AND companyId is available
+  useEffect(() => {
+    if (!isLoggedIn || !companyId) return;
+    
     const fetchAttributes = async () => {
       setLoading(true);
       setError(null);
       
       try {
-        const response = await api.getAttributes(productListId);
+        const response = await api.getAttributes(productListId, companyId);
         
         if (response.success) {
           setSystemAttributes(response.data.systemAttributes);
@@ -78,7 +104,18 @@ export default function AttributesPage() {
     };
     
     fetchAttributes();
-  }, [productListId]);
+  }, [productListId, isLoggedIn, companyId]);
+
+  // If not logged in, show loading indicator (will redirect)
+  if (!isLoggedIn) {
+    return (
+      <Container maxWidth="lg">
+        <Box sx={{ mt: 4, mb: 2, display: 'flex', justifyContent: 'center' }}>
+          <CircularProgress />
+        </Box>
+      </Container>
+    );
+  }
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -273,7 +310,7 @@ export default function AttributesPage() {
         );
       } else {
         // If toggle failed, refresh attributes
-        const refreshResponse = await api.getAttributes(productListId);
+        const refreshResponse = await api.getAttributes(productListId, companyId);
         if (refreshResponse.success) {
           setAttributes(refreshResponse.data.customAttributes);
         }
@@ -294,6 +331,8 @@ export default function AttributesPage() {
       isAiEnriched: false,
       isSortable: false,
       isFilterable: false,
+      isRequired: false,
+      isMultiValue: false,
       isSystem: false,
       type: 'text'
     };

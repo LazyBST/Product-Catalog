@@ -12,11 +12,14 @@ import {
   Alert,
   FormControlLabel,
   Switch,
-  MenuItem
+  MenuItem,
+  Select,
+  Chip
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import SaveIcon from '@mui/icons-material/Save';
 import api, { Product, Attribute } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProductDockProps {
   open: boolean;
@@ -27,6 +30,8 @@ interface ProductDockProps {
 }
 
 const ProductDock: React.FC<ProductDockProps> = ({ open, onClose, productListId, productId, onSaved }) => {
+  const { isLoggedIn } = useAuth();
+  const [companyId, setCompanyId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +49,16 @@ const ProductDock: React.FC<ProductDockProps> = ({ open, onClose, productListId,
   // Form validation
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Get company ID from localStorage for unauthenticated access
+  useEffect(() => {
+    if (!isLoggedIn) {
+      const storedCompanyId = localStorage.getItem('sharedCompanyId');
+      if (storedCompanyId) {
+        setCompanyId(parseInt(storedCompanyId, 10));
+      }
+    }
+  }, [isLoggedIn]);
+
   // Load product data and attributes when opened
   useEffect(() => {
     if (open) {
@@ -56,17 +71,29 @@ const ProductDock: React.FC<ProductDockProps> = ({ open, onClose, productListId,
     setError(null);
     
     try {
-      // Load attributes
-      const attributesResponse = await api.getAttributes(productListId);
-      if (attributesResponse.success) {
-        // Use only custom attributes
-        const customAttributes = attributesResponse.data.customAttributes || [];
-        setAttributes(customAttributes);
+      // Get companyId for API calls
+      const storedCompanyId = localStorage.getItem('companyId');
+      const companyId = storedCompanyId ? parseInt(storedCompanyId, 10) : undefined;
+      
+      // Load attributes first
+      const attributesResponse = await api.getAttributes(productListId, companyId);
+      
+      if (!attributesResponse.success) {
+        setError(attributesResponse.errMsg || 'Failed to load attributes');
+        return;
       }
+
+      // Use only custom attributes
+      const customAttributes = attributesResponse.data.customAttributes || [];
+      setAttributes(customAttributes);
 
       // If we're editing an existing product, load its data
       if (productId) {
-        const productResponse = await api.getProduct(productListId, productId);
+        const productResponse = await api.getProduct(
+          productListId, 
+          productId,
+          !isLoggedIn && companyId ? companyId : undefined
+        );
         if (productResponse.success) {
           setProduct(productResponse.data);
         } else {
@@ -100,14 +127,19 @@ const ProductDock: React.FC<ProductDockProps> = ({ open, onClose, productListId,
     }
   };
 
-  const handleAttributeChange = (attributeId: string | number, value: string | string[]) => {
-    setProduct(prev => ({
-      ...prev,
-      attribute_values: {
-        ...prev.attribute_values,
-        [attributeId.toString()]: value
-      }
-    }));
+  const handleAttributeChange = (attributeId: number | string, value: string | string[] | null) => {
+    setProduct(prev => {
+      // Make sure we're using a string or null value, not arrays
+      const finalValue = Array.isArray(value) ? value.join(', ') : value;
+      
+      return {
+        ...prev,
+        attribute_values: {
+          ...prev.attribute_values,
+          [attributeId]: finalValue
+        }
+      };
+    });
   };
 
   const validate = (): boolean => {
@@ -147,12 +179,19 @@ const ProductDock: React.FC<ProductDockProps> = ({ open, onClose, productListId,
     try {
       let response;
       
+      // Pass companyId for unauthorized users
+      const requestCompanyId = !isLoggedIn && companyId ? companyId : undefined;
+      
       if (productId) {
         // Update existing product
-        response = await api.updateProduct(productListId, productId, product);
+        response = await api.updateProduct(productListId, productId, product, requestCompanyId);
       } else {
         // Create new product
-        response = await api.createProduct(productListId, product as Omit<Product, 'id' | 'created_at' | 'is_ai_enriched'>);
+        response = await api.createProduct(
+          productListId, 
+          product as Omit<Product, 'id' | 'created_at' | 'is_ai_enriched'>,
+          requestCompanyId
+        );
       }
       
       if (response.success) {
@@ -174,19 +213,16 @@ const ProductDock: React.FC<ProductDockProps> = ({ open, onClose, productListId,
       anchor="right"
       open={open}
       onClose={onClose}
-      sx={{
-        '& .MuiDrawer-paper': { 
-          width: {
-            xs: '100%',
-            sm: '600px'
-          },
+      PaperProps={{
+        sx: {
+          width: { xs: '100%', sm: 500 },
           p: 3
         },
       }}
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5" fontWeight="bold">
-          {productId ? 'Edit Product' : 'Create Product'}
+          {!isLoggedIn ? 'View Product' : (productId ? 'Edit Product' : 'Create Product')}
         </Typography>
         <IconButton onClick={onClose}>
           <CloseIcon />
@@ -196,6 +232,12 @@ const ProductDock: React.FC<ProductDockProps> = ({ open, onClose, productListId,
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
+        </Alert>
+      )}
+      
+      {!isLoggedIn && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          You need to be logged in to edit or create products.
         </Alert>
       )}
       
@@ -221,6 +263,7 @@ const ProductDock: React.FC<ProductDockProps> = ({ open, onClose, productListId,
                 required
                 error={!!errors.name}
                 helperText={errors.name}
+                disabled={!isLoggedIn}
               />
             </Grid>
             
@@ -289,9 +332,9 @@ const ProductDock: React.FC<ProductDockProps> = ({ open, onClose, productListId,
                         attr.type === 'multiple_select'
                           ? (product.attribute_values && 
                              product.attribute_values[attr.id.toString()] 
-                             ? Array.isArray(product.attribute_values[attr.id.toString()]) 
-                               ? product.attribute_values[attr.id.toString()]
-                               : [product.attribute_values[attr.id.toString()]]
+                             ? (Array.isArray(product.attribute_values[attr.id.toString()]) 
+                                ? product.attribute_values[attr.id.toString()] as string[]
+                                : [product.attribute_values[attr.id.toString()]])
                              : [])
                           : (product.attribute_values && 
                              product.attribute_values[attr.id.toString()] !== undefined
@@ -334,15 +377,13 @@ const ProductDock: React.FC<ProductDockProps> = ({ open, onClose, productListId,
             </>
           )}
           
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 4 }}>
-            <Button onClick={onClose} sx={{ mr: 2 }}>
-              Cancel
-            </Button>
+          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
             <Button 
               variant="contained" 
-              onClick={handleSave}
-              disabled={saving}
-              startIcon={saving ? <CircularProgress size={20} /> : <SaveIcon />}
+              color="primary" 
+              onClick={handleSave} 
+              disabled={saving || !isLoggedIn}
+              startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
             >
               {saving ? 'Saving...' : 'Save Product'}
             </Button>

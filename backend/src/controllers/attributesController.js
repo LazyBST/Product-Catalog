@@ -8,9 +8,14 @@ const openai = require('openai');
 const getAttributes = async (req, res) => {
   try {
     const productListId = parseInt(req.params.productListId, 10);
-    let companyId = req.user.companyId;
-    if (isNaN(companyId)) {
-      companyId = parseInt(req.query.companyId, 10);
+    // Get companyId from query parameter for public access instead of JWT token
+    const companyId = req.user?.companyId || req.query.company_id;
+    
+    if (!companyId) {
+      return res.status(400).json({
+        success: false,
+        errMsg: 'Company ID is required'
+      });
     }
     
     if (isNaN(productListId)) {

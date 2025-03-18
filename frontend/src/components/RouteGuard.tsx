@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 // List of public paths that don't require authentication
@@ -11,6 +11,7 @@ const productPaths = ['/products'];
 const RouteGuard = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { isLoggedIn } = useAuth();
 
   useEffect(() => {
@@ -34,12 +35,15 @@ const RouteGuard = ({ children }: { children: React.ReactNode }) => {
         router.push(redirectUrl);
       } else if (isLoggedIn && isPublicPath()) {
         // Redirect to dashboard if authenticated and trying to access public routes
-        router.push('/dashboard');
+        // preserve any query parameters like inviteCode when redirecting
+        const queryParams = searchParams.toString();
+        const redirectUrl = queryParams ? `/dashboard?${queryParams}` : '/dashboard';
+        router.push(redirectUrl);
       }
     };
 
     checkAuth();
-  }, [isLoggedIn, pathname, router]);
+  }, [isLoggedIn, pathname, router, searchParams]);
 
   return <>{children}</>;
 };

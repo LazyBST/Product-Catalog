@@ -14,30 +14,26 @@ import {
   TextField,
   InputAdornment,
   Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  SelectChangeEvent,
-  FormGroup,
-  FormControlLabel,
   Checkbox,
   Avatar,
   Chip,
   TableSortLabel,
-  Grid,
-  Collapse,
-  Divider,
-  Tooltip,
   Menu,
+  MenuItem,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  Stack,
+  Alert,
+  FormControlLabel,
+  FormControl,
+  InputLabel,
+  Select,
+  SelectChangeEvent,
 } from '@mui/material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
@@ -46,27 +42,32 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
+import CloseIcon from '@mui/icons-material/Close';
 import api, { Product, ProductsFilters, ProductsSortOptions, ProductAttribute, FilterableField, SortableField } from '@/services/api';
 import { debounce } from 'lodash';
 import ProductDock from './ProductDock';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProductsTableProps {
   productListId: number;
   productListName: string;
+  companyId?: number | undefined;
+  isCompanyIdReady?: boolean;
 }
 
-// Read the type definition from the API import and extend it - use a type assertion instead
-// interface ExtendedProductsFilters extends Omit<ProductsFilters, 'customFilters'> {
-//   customFilters?: Record<string, string>;
-// }
-
-const ProductsTable = ({ productListId, productListName }: ProductsTableProps) => {
+const ProductsTable = ({ productListId, productListName, companyId: propCompanyId, isCompanyIdReady }: ProductsTableProps) => {
   const router = useRouter();
+  const { isLoggedIn } = useAuth();
   
-  // Function to navigate to attributes page
+  // Use company ID from props directly
+  const companyId = propCompanyId;
+  
+  // Function to navigate to attributes page - only for authenticated users
   const goToAttributes = () => {
-    router.push(`/products/${productListId}/${encodeURIComponent(productListName)}/attributes`);
+    if (isLoggedIn) {
+      router.push(`/products/${productListId}/${encodeURIComponent(productListName)}/attributes`);
+    }
   };
 
   // State for products data
@@ -318,6 +319,13 @@ const ProductsTable = ({ productListId, productListName }: ProductsTableProps) =
           apiFilters[`custom_${key}`] = value;
         });
       }
+      console.log('companyId1', companyId);
+      
+      // For unauthenticated users, we'll use the companyId from localStorage
+      // For authenticated users, we also pass the companyId to ensure consistent behavior
+      const requestCompanyId = companyId !== null ? companyId : undefined;
+      
+      console.log('API call with companyId:', requestCompanyId);
       
       const response = await api.getProducts(
         productListId,
@@ -326,53 +334,42 @@ const ProductsTable = ({ productListId, productListName }: ProductsTableProps) =
         searchTerm,
         apiFilters,
         sortOptions.sortField,
-        sortOptions.sortOrder
+        sortOptions.sortOrder,
+        requestCompanyId // Pass company_id for API access
       );
       
       if (response.success) {
+        console.log('API getProducts success, received', response.data.products.length, 'products');
         setProducts(response.data.products);
+        
+        // Update pagination data
+        setPagination({
+          page: newPage,
+          limit: requestedLimit,
+          totalPages: response.data.pagination.totalPages,
+          totalCount: response.data.pagination.totalCount
+        });
+        
+        // Update available filterable and sortable fields
         setFilterableFields(response.data.filterableFields);
         setSortableFields(response.data.sortableFields);
         
-        console.log({response});
+        // Reset loading state
+        setLoading(false);
         
-        // Only update totalPages and totalCount from the response
-        // DO NOT update the page or limit as they were already set correctly by handlePageChange or handleLimitChange
-        if (reset) {
-          // Only if we're resetting to page 1, update the page
-          setPagination(prev => ({
-            ...prev,
-            page: 1,
-            totalPages: response.data.pagination.totalPages,
-            totalCount: response.data.pagination.totalCount
-          }));
-        } else {
-          // Otherwise just update the totals
-          setPagination(prev => ({
-            ...prev,
-            totalPages: response.data.pagination.totalPages,
-            totalCount: response.data.pagination.totalCount
-          }));
-        }
-        
-        // Clear selection when loading new data
-        setSelectedProducts([]);
-        
-        // Extract available brands from products
-        const uniqueBrands = new Set<string>();
-        response.data.products.forEach(product => {
-          if (product.brand) {
-            uniqueBrands.add(product.brand);
-          }
-        });
-        setAvailableBrands(Array.from(uniqueBrands));
+        // Extract unique brands for filter
+        const brands = [...new Set(response.data.products
+          .map(p => p.brand)
+          .filter(b => !!b)
+        )];
+        setAvailableBrands(brands as string[]);
       } else {
-        setError(response.errMsg || 'Failed to load products');
+        setError(response.errMsg || 'Failed to fetch products');
+        setLoading(false);
       }
     } catch (err) {
       console.error('Error fetching products:', err);
-      setError('Failed to load products');
-    } finally {
+      setError('Failed to fetch products data');
       setLoading(false);
     }
   };
@@ -383,6 +380,11 @@ const ProductsTable = ({ productListId, productListName }: ProductsTableProps) =
     // The handleApplyFilters function will handle that
     if (isDirectFilterApplyRef.current) {
       isDirectFilterApplyRef.current = false;
+      return;
+    }
+
+    // Don't fetch if companyId is not ready yet
+    if (!isCompanyIdReady || !companyId) {
       return;
     }
 
@@ -401,7 +403,7 @@ const ProductsTable = ({ productListId, productListName }: ProductsTableProps) =
     // Reset the page change flag
     isPageChangeRef.current = false;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productListId, debouncedSearchTerm, JSON.stringify(filters), JSON.stringify(sortOptions)]);
+  }, [productListId, debouncedSearchTerm, JSON.stringify(filters), JSON.stringify(sortOptions), isCompanyIdReady, companyId]);
 
   // Handle refresh button click
   const handleRefresh = () => {
@@ -432,7 +434,7 @@ const ProductsTable = ({ productListId, productListName }: ProductsTableProps) =
   };
 
   // Function to handle items per page change
-  const handleLimitChange = (event: SelectChangeEvent<number>) => {
+  const handleLimitChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     // Set flag to indicate pagination change is in progress
     isPageChangeRef.current = true;
     
@@ -605,16 +607,16 @@ const ProductsTable = ({ productListId, productListName }: ProductsTableProps) =
       setFilters(updatedFilters);
       setTempFilters(updatedTempFilters);
     } else {
-      // It's a custom filter - update the filters that will be sent
-      if (`custom_${key}` in updatedFilters) {
-        delete updatedFilters[`custom_${key}`];
-      }
+      // It's a custom filter - completely remove it from all filter objects
+      // Remove from filters object with the custom_ prefix
+      delete updatedFilters[`custom_${key}`];
       
       // Remove from temp custom filters
       delete updatedTempCustomFilters[key];
       delete updatedSelectedFilters[key];
       
       // Update state (these are async)
+      setFilters(updatedFilters);  // Also update the main filters object
       setTempCustomFilters(updatedTempCustomFilters);
       setSelectedFilters(updatedSelectedFilters);
       
@@ -631,8 +633,12 @@ const ProductsTable = ({ productListId, productListName }: ProductsTableProps) =
       page: 1
     }));
     
+    // Create a sanitized version of updatedFilters for the API call
+    // that doesn't contain any references to the removed custom filter
+    const apiFilters = { ...updatedFilters };
+    
     // Directly call fetchProducts with the updated filters
-    fetchProducts(true, updatedFilters);
+    fetchProducts(true, apiFilters);
   };
 
   // Function to remove a custom filter
@@ -683,12 +689,17 @@ const ProductsTable = ({ productListId, productListName }: ProductsTableProps) =
 
   // Handle edit product
   const handleEditProduct = (productId: number) => {
+    // For unauthorized users, they can only view products, not edit them
     setEditProductId(productId);
     setShowProductDock(true);
   };
   
   // Handle new product
   const handleNewProduct = () => {
+    // Don't allow unauthorized users to create new products
+    if (!isLoggedIn) {
+      return;
+    }
     setEditProductId(undefined);
     setShowProductDock(true);
   };
@@ -702,7 +713,8 @@ const ProductsTable = ({ productListId, productListName }: ProductsTableProps) =
   useEffect(() => {
     const fetchProductAttributes = async () => {
       try {
-        const response = await api.getAttributes(productListId);
+        // Pass companyId to getAttributes if available
+        const response = await api.getAttributes(productListId, companyId);
         
         if (response.success) {
           // Transform attributes to match ProductAttribute interface
@@ -746,8 +758,20 @@ const ProductsTable = ({ productListId, productListName }: ProductsTableProps) =
       }
     };
     
-    fetchProductAttributes();
-  }, [productListId]);
+    // Only fetch when companyId is ready
+    if (isCompanyIdReady && companyId) {
+      fetchProductAttributes();
+    }
+  }, [productListId, companyId, isCompanyIdReady]);
+
+  // Initial data fetch to send companyId on first mount
+  useEffect(() => {
+    // Only trigger when companyId is ready
+    if (isCompanyIdReady && companyId) {
+      console.log('Initial fetch with companyId:', companyId);
+      fetchProducts(true);
+    }
+  }, [companyId, isCompanyIdReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Render all active filters as chips
   const renderAllActiveFilters = () => {
@@ -885,302 +909,134 @@ const ProductsTable = ({ productListId, productListName }: ProductsTableProps) =
   };
 
   // Render pagination controls
-  const renderPagination = () => {
-    if (pagination.totalPages <= 1) return null;
-    
-    const { page, totalPages } = pagination;
-    console.log(`renderPagination: Current page is ${page} of ${totalPages}`);
-    
-    // Calculate the range of pages to show
-    let startPage = Math.max(1, page - 2);
-    let endPage = Math.min(totalPages, page + 2);
-    
-    // Adjust the range if we're at the beginning or end
-    if (startPage === 1) {
-      endPage = Math.min(5, totalPages);
-    } else if (endPage === totalPages) {
-      startPage = Math.max(1, totalPages - 4);
-    }
-    
-    const pageButtons = [];
-    
-    // First page button
-    if (startPage > 1) {
-      pageButtons.push(
-        <Button
-          key="first"
-          variant={page === 1 ? "contained" : "outlined"}
-          size="small"
-          onClick={() => handlePageChange(1)}
-          sx={{ minWidth: 40, mx: 0.5 }}
-        >
-          1
-        </Button>
-      );
-      
-      // Ellipsis if needed
-      if (startPage > 2) {
-        pageButtons.push(
-          <Box key="ellipsis1" sx={{ mx: 1 }}>...</Box>
-        );
-      }
-    }
-    
-    // Page number buttons
-    for (let i = startPage; i <= endPage; i++) {
-      pageButtons.push(
-        <Button
-          key={i}
-          variant={page === i ? "contained" : "outlined"}
-          color={page === i ? "primary" : "inherit"}
-          size="small"
-          onClick={() => handlePageChange(i)}
-          sx={{ 
-            minWidth: 40, 
-            mx: 0.5,
-            fontWeight: page === i ? 'bold' : 'normal'
-          }}
-        >
-          {i}
-        </Button>
-      );
-    }
-    
-    // Last page button
-    if (endPage < totalPages) {
-      // Ellipsis if needed
-      if (endPage < totalPages - 1) {
-        pageButtons.push(
-          <Box key="ellipsis2" sx={{ mx: 1 }}>...</Box>
-        );
-      }
-      
-      pageButtons.push(
-        <Button
-          key="last"
-          variant={page === totalPages ? "contained" : "outlined"}
-          size="small"
-          onClick={() => handlePageChange(totalPages)}
-          sx={{ minWidth: 40, mx: 0.5 }}
-        >
-          {totalPages}
-        </Button>
-      );
-    }
-    
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mt: 2, mb: 2 }}>
-        <Typography variant="body2" sx={{ mr: 2 }}>
-          Page {page} of {totalPages}
-        </Typography>
-        
-        <Button
-          disabled={page === 1}
-          onClick={() => handlePageChange(page - 1)}
-          size="small"
-          sx={{ mr: 1 }}
-        >
-          Prev
-        </Button>
-        
-        {pageButtons}
-        
-        <Button
-          disabled={page === totalPages}
-          onClick={() => handlePageChange(page + 1)}
-          size="small"
-          sx={{ ml: 1 }}
-        >
-          Next
-        </Button>
-        
-        <Box sx={{ ml: 3, display: 'flex', alignItems: 'center' }}>
-          <Typography variant="body2" sx={{ mr: 1 }}>Items per page:</Typography>
-          <Select
-            value={pagination.limit}
-            onChange={handleLimitChange}
-            size="small"
-            sx={{ minWidth: 80 }}
+  const renderPagination = () => (
+    <Box sx={{ display: 'flex', justifyContent: 'flex-end', py: 2 }}>
+      {/* Pagination controls */}
+      {pagination.totalPages > 1 && (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Button
+            disabled={pagination.page === 1}
+            onClick={() => handlePageChange(pagination.page - 1)}
           >
-            <MenuItem value={20}>20</MenuItem>
-            <MenuItem value={50}>50</MenuItem>
-            <MenuItem value={100}>100</MenuItem>
-            <MenuItem value={200}>200</MenuItem>
-          </Select>
+            Previous
+          </Button>
+          <Typography sx={{ mx: 2 }}>
+            Page {pagination.page} of {pagination.totalPages}
+          </Typography>
+          <Button
+            disabled={pagination.page === pagination.totalPages}
+            onClick={() => handlePageChange(pagination.page + 1)}
+          >
+            Next
+          </Button>
         </Box>
-      </Box>
-    );
-  };
-
-  const ActionButtons = () => (
-    <Box sx={{ display: 'flex', gap: 1 }}>
-      <Button
-        variant="outlined"
-        startIcon={<AutoFixHighIcon />}
-        onClick={handleEnrichProducts}
-        disabled={selectedProducts.length === 0 || selectedProducts.length > 5}
-        size="small"
-      >
-        {selectedProducts.length > 5 ? 'Select Max 5 Items' : 'Enrich Selected'}
-      </Button>
-      <Button
-        variant="outlined"
-        color="error"
-        startIcon={<DeleteIcon />}
-        onClick={handleDeleteProducts}
-        disabled={selectedProducts.length === 0 || selectedProducts.length > 5}
-        size="small"
-      >
-        {selectedProducts.length > 5 ? 'Select Max 5 Items' : 'Delete Selected'}
-      </Button>
+      )}
     </Box>
   );
 
-  // Update FilterDialog to use local state for input value
-  const FilterDialog = () => {
-    // Use local state for the filter input while typing
-    const [localFilterValue, setLocalFilterValue] = useState('');
-    
-    // Initialize local state when dialog opens
-    useEffect(() => {
-      if (showFilterDialog && selectedFilter) {
-        // First check tempCustomFilters (staged filters), then fall back to selectedFilters (active filters)
-        const existingValue = selectedFilter.id ? 
-          tempCustomFilters[selectedFilter.id.toString()] || 
-          selectedFilters[selectedFilter.id.toString()] || 
-          '' : '';
-        setLocalFilterValue(existingValue);
-      }
-    }, [showFilterDialog, selectedFilter]);
-    
-    return (
-      <Dialog 
-        open={showFilterDialog} 
-        onClose={handleCloseFilterDialog} 
-        maxWidth="sm" 
-        fullWidth
-      >
-        <DialogTitle>Filter by {selectedFilter?.name}</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Filter value"
-            fullWidth
-            value={localFilterValue}
-            onChange={(e) => {
-              // Only update local state while typing - no app state updates
-              setLocalFilterValue(e.target.value);
-            }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseFilterDialog} color="primary">
-            Cancel
-          </Button>
+  // Extract ActionButtons as a separate component
+  const ActionButtons = () => (
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+      <Box sx={{ display: 'flex', gap: 1 }}>
+        <Button 
+          variant="outlined" 
+          onClick={handleRefresh} 
+          startIcon={<RefreshIcon />}
+        >
+          Refresh
+        </Button>
+        <Button 
+          variant="outlined" 
+          onClick={toggleFilters} 
+          startIcon={<FilterListIcon />}
+        >
+          {showFilters ? 'Hide Filters' : 'Show Filters'}
+        </Button>
+        
+        {isLoggedIn && (
           <Button 
-            onClick={() => {
-              if (selectedFilter && localFilterValue.trim()) {
-                // Only stage the filter, don't apply it immediately
-                setTempCustomFilters(prev => ({
-                  ...prev,
-                  [selectedFilter.id.toString()]: localFilterValue
-                }));
-                // Close the dialog
-                handleCloseFilterDialog();
-              }
-            }} 
-            color="primary"
-            disabled={!selectedFilter || !localFilterValue.trim()}
+            variant="outlined" 
+            onClick={goToAttributes} 
+            startIcon={<SettingsIcon />}
           >
-            Apply
+            Attributes
           </Button>
-        </DialogActions>
-      </Dialog>
-    );
-  };
+        )}
+      </Box>
+      
+      {/* Only show Add Product button for authorized users */}
+      {isLoggedIn && (
+        <Button 
+          variant="contained" 
+          onClick={handleNewProduct}
+        >
+          Add Product
+        </Button>
+      )}
+    </Box>
+  );
 
   return (
-    <>
-      <Paper sx={{ width: '100%', mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2 }}>
-          <Typography variant="h6" fontWeight="bold">
-            Products
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button 
-              variant="contained" 
-              color="primary" 
-              onClick={handleNewProduct}
-              size="small"
-            >
-              New Product
-            </Button>
-            <IconButton onClick={goToAttributes} size="small" title="Manage Attributes">
-              <SettingsIcon />
-            </IconButton>
-            <IconButton onClick={toggleFilters} size="small" title="Toggle Filters">
-              <FilterListIcon />
-            </IconButton>
-            <TextField
-              placeholder="Search by name, brand, or barcode"
-              variant="outlined"
-              size="small"
-              value={searchTerm}
-              onChange={handleSearchChange}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{ width: 300 }}
-            />
-            <IconButton onClick={handleRefresh} disabled={loading} title="Refresh">
-              {loading ? <CircularProgress size={24} /> : <RefreshIcon />}
-            </IconButton>
-          </Box>
-        </Box>
-
-        {/* Bulk Action Buttons - Only show when products are selected */}
-        {selectedProducts.length > 0 && (
-          <Box sx={{ p: 2, backgroundColor: 'rgba(0, 0, 0, 0.03)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="body2">
-              {selectedProducts.length} products selected
-            </Typography>
-            <ActionButtons />
-          </Box>
-        )}
-
-        {/* Horizontal filters row */}
-        <Collapse in={showFilters}>
-          <Box sx={{ p: 2, backgroundColor: 'rgba(0, 0, 0, 0.03)' }}>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} sm={6} md={3}>
-                <FormGroup>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={tempFilters.hasImage === true}
-                        onChange={handleHasImageFilterChange}
-                        size="small"
-                      />
-                    }
-                    label="Has image"
+    <Box>
+      <ActionButtons />
+      
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+      
+      {/* Search, filters, etc. remain the same */}
+      <Box sx={{ width: '100%', mb: 2 }}>
+        <TextField
+          placeholder="Search products..."
+          variant="outlined"
+          fullWidth
+          value={searchTerm}
+          onChange={handleSearchChange}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Box>
+      
+      {/* Only show filters when showFilters is true */}
+      {showFilters && (
+        <Box sx={{ mb: 2 }}>
+          {/* Display active filters first */}
+          {renderAllActiveFilters()}
+          
+          {/* Then display any pending filters */}
+          {renderPendingFilters()}
+          
+          {/* Add the actual filter controls */}
+          <Paper sx={{ p: 2, mt: 2 }}>
+            <Typography variant="h6" gutterBottom>Filters</Typography>
+            
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+              {/* Has Image filter */}
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={!!tempFilters.hasImage}
+                    onChange={handleHasImageFilterChange}
                   />
-                </FormGroup>
-              </Grid>
+                }
+                label="Has Image"
+              />
               
-              <Grid item xs={12} sm={6} md={3}>
-                <FormControl fullWidth size="small">
-                  <InputLabel id="brand-filter-label">Brand</InputLabel>
+              {/* Brand filter */}
+              {availableBrands.length > 0 && (
+                <FormControl sx={{ minWidth: 200 }}>
+                  <InputLabel>Brand</InputLabel>
                   <Select
-                    labelId="brand-filter-label"
                     value={tempFilters.brand || 'all'}
-                    label="Brand"
                     onChange={handleBrandFilterChange}
-                    size="small"
+                    label="Brand"
                   >
                     <MenuItem value="all">All Brands</MenuItem>
                     {availableBrands.map(brand => (
@@ -1188,307 +1044,341 @@ const ProductsTable = ({ productListId, productListName }: ProductsTableProps) =
                     ))}
                   </Select>
                 </FormControl>
-              </Grid>
+              )}
               
-              <Grid item xs={12} sm={6} md={3}>
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
+              {/* Date range filters */}
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <Box sx={{ display: 'flex', gap: 2 }}>
                   <DatePicker
                     label="Created From"
                     value={tempFilters.createdFrom ? new Date(tempFilters.createdFrom * 1000) : null}
-                    onChange={handleDateFromChange}
-                    slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                    onChange={(date) => handleDateFromChange(date)}
+                    slotProps={{ textField: { variant: 'outlined', size: 'small' } }}
                   />
-                </LocalizationProvider>
-              </Grid>
-              
-              <Grid item xs={12} sm={6} md={3}>
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DatePicker
                     label="Created To"
                     value={tempFilters.createdTo ? new Date(tempFilters.createdTo * 1000) : null}
-                    onChange={handleDateToChange}
-                    slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                    onChange={(date) => handleDateToChange(date)}
+                    slotProps={{ textField: { variant: 'outlined', size: 'small' } }}
                   />
-                </LocalizationProvider>
-              </Grid>
-              
-              {filterableFields.length > 0 && (
-                <Grid item xs={12}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Custom Filters:
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                    {filterableFields.map(field => (
-                      <Button
-                        key={field.id}
-                        variant="outlined"
-                        size="small"
-                        onClick={() => handleOpenFilterDialog(field)}
-                      >
-                        {field.name}
-                      </Button>
-                    ))}
-                  </Box>
-                </Grid>
-              )}
-              
-              {/* Display pending filters */}
-              <Grid item xs={12}>
-                {renderPendingFilters()}
-              </Grid>
-              
-              <Grid item xs={12}>
-                <Divider sx={{ my: 2 }} />
-                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                  <Button 
-                    variant="outlined" 
-                    color="error" 
-                    onClick={handleResetFilters}
-                    size="small"
-                  >
-                    Reset
-                  </Button>
-                  <Button 
-                    variant="contained" 
-                    onClick={handleApplyFilters}
-                    size="small"
-                  >
-                    Apply Filters
-                  </Button>
                 </Box>
-              </Grid>
-            </Grid>
-          </Box>
-        </Collapse>
-
-        {/* Display all active filters as chips */}
-        {renderAllActiveFilters()}
-
-        {error && (
-          <Box sx={{ p: 2, color: 'error.main' }}>
-            <Typography>{error}</Typography>
-          </Box>
-        )}
-        <TableContainer>
-          <Table>
-            <TableHead sx={{ backgroundColor: 'rgba(0, 0, 0, 0.1)' }}>
-              <TableRow>
+              </LocalizationProvider>
+              
+              {/* Display custom field filters on a new line */}
+              </Box>
+              
+              <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>Custom Filters:</Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+              {/* Custom field filters */}
+              {filterableFields.map(field => (
+                <Button 
+                  key={field.id}
+                  variant="outlined"
+                  size="small"
+                  onClick={() => handleOpenFilterDialog(field)}
+                  startIcon={<FilterListIcon />}
+                >
+                  Filter by {field.name}
+                </Button>
+              ))}
+            </Box>
+            
+            {/* Filter action buttons */}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+              <Button 
+                sx={{ mr: 1 }}
+                onClick={handleResetFilters}
+              >
+                Reset Filters
+              </Button>
+              <Button 
+                variant="contained" 
+                color="primary"
+                onClick={handleApplyFilters}
+              >
+                Apply Filters
+              </Button>
+            </Box>
+          </Paper>
+        </Box>
+      )}
+      
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              {/* Only show checkbox column for authenticated users */}
+              {isLoggedIn && (
                 <TableCell padding="checkbox">
                   <Checkbox
+                    indeterminate={selectedProducts.length > 0 && selectedProducts.length < products.length}
                     checked={selectAll}
                     onChange={handleSelectAll}
-                    size="small"
-                    indeterminate={selectedProducts.length > 0 && selectedProducts.length < products.length}
                   />
                 </TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Image</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>
+              )}
+              <TableCell>
+                <TableSortLabel
+                  active={sortOptions.sortField === 'barcode'}
+                  direction={sortOptions.sortField === 'barcode' ? sortOptions.sortOrder?.toLowerCase() as 'asc' | 'desc' : 'asc'}
+                  onClick={() => handleSort('barcode')}
+                >
+                  Barcode
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>Image</TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={sortOptions.sortField === 'name'}
+                  direction={sortOptions.sortField === 'name' ? sortOptions.sortOrder?.toLowerCase() as 'asc' | 'desc' : 'asc'}
+                  onClick={() => handleSort('name')}
+                >
+                  Name
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={sortOptions.sortField === 'brand'}
+                  direction={sortOptions.sortField === 'brand' ? sortOptions.sortOrder?.toLowerCase() as 'asc' | 'desc' : 'asc'}
+                  onClick={() => handleSort('brand')}
+                >
+                  Brand
+                </TableSortLabel>
+              </TableCell>
+              
+              {/* Render custom attribute columns - show all attributes */}
+              {productAttributes.map(attr => (
+                <TableCell key={attr.id}>
                   <TableSortLabel
-                    active={sortOptions.sortField === 'name'}
-                    direction={sortOptions.sortField === 'name' ? (sortOptions.sortOrder?.toLowerCase() as 'asc' | 'desc') : 'asc'}
-                    onClick={() => handleSort('name', false)}
+                    active={sortOptions.sortField === `custom_${attr.id}`}
+                    direction={sortOptions.sortField === `custom_${attr.id}` ? sortOptions.sortOrder?.toLowerCase() as 'asc' | 'desc' : 'asc'}
+                    onClick={() => handleSort(`custom_${attr.id}`, true)}
+                    disabled={!attr.is_sortable}
                   >
-                    Product name
+                    {attr.field_name}
                   </TableSortLabel>
                 </TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>
-                  <TableSortLabel
-                    active={sortOptions.sortField === 'brand'}
-                    direction={sortOptions.sortField === 'brand' ? (sortOptions.sortOrder?.toLowerCase() as 'asc' | 'desc') : 'asc'}
-                    onClick={() => handleSort('brand', false)}
-                  >
-                    Brand
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>
-                  <TableSortLabel
-                    active={sortOptions.sortField === 'barcode'}
-                    direction={sortOptions.sortField === 'barcode' ? (sortOptions.sortOrder?.toLowerCase() as 'asc' | 'desc') : 'asc'}
-                    onClick={() => handleSort('barcode', false)}
-                  >
-                    Barcode
-                  </TableSortLabel>
-                </TableCell>
-                
-                {/* Render attribute column headers with sort capability for sortable ones */}
-                {productAttributes.map(attr => {
-                  // Check if this attribute is sortable
-                  const isSortable = sortableFields.some(f => f.id === attr.id);
-                  const sortFieldName = `custom_${attr.id}`;
-                  
-                  return (
-                    <TableCell key={`header-${attr.id}`} sx={{ fontWeight: 'bold' }}>
-                      {isSortable ? (
-                        <TableSortLabel
-                          active={sortOptions.sortField === sortFieldName}
-                          direction={sortOptions.sortField === sortFieldName 
-                            ? (sortOptions.sortOrder?.toLowerCase() as 'asc' | 'desc') 
-                            : 'asc'}
-                          onClick={() => handleSort(attr.id.toString(), true)}
-                        >
-                          {attr.field_name}
-                        </TableSortLabel>
-                      ) : (
-                        attr.field_name
-                      )}
-                    </TableCell>
-                  );
-                })}
-                
-                <TableCell sx={{ fontWeight: 'bold' }}>
-                  <TableSortLabel
-                    active={sortOptions.sortField === 'created_at'}
-                    direction={sortOptions.sortField === 'created_at' ? (sortOptions.sortOrder?.toLowerCase() as 'asc' | 'desc') : 'asc'}
-                    onClick={() => handleSort('created_at', false)}
-                  >
-                    Created at
-                  </TableSortLabel>
-                </TableCell>
-                
-                <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
+              ))}
+              
+              {/* Only show AI enriched column for authenticated users */}
+              {isLoggedIn && (
+                <TableCell>
                   <TableSortLabel
                     active={sortOptions.sortField === 'is_ai_enriched'}
-                    direction={sortOptions.sortField === 'is_ai_enriched' ? (sortOptions.sortOrder?.toLowerCase() as 'asc' | 'desc') : 'asc'}
-                    onClick={() => handleSort('is_ai_enriched', false)}
+                    direction={sortOptions.sortField === 'is_ai_enriched' ? sortOptions.sortOrder?.toLowerCase() as 'asc' | 'desc' : 'asc'}
+                    onClick={() => handleSort('is_ai_enriched')}
                   >
                     AI Enriched
                   </TableSortLabel>
                 </TableCell>
-                
-                <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>Actions</TableCell>
+              )}
+              
+              {/* Only show actions column for authenticated users */}
+              {isLoggedIn && <TableCell>Actions</TableCell>}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell 
+                  colSpan={
+                    3 + // barcode, name, brand
+                    1 + // image
+                    productAttributes.length +
+                    (isLoggedIn ? 3 : 0) // checkbox, AI enriched, actions (only for authenticated)
+                  } 
+                  align="center"
+                >
+                  <CircularProgress />
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading && products.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8 + productAttributes.length} align="center">
-                    <CircularProgress />
-                  </TableCell>
-                </TableRow>
-              ) : products.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8 + productAttributes.length} align="center">
-                    No products found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                products.map((product) => (
-                  <TableRow key={product.id}>
+            ) : products.length === 0 ? (
+              <TableRow>
+                <TableCell 
+                  colSpan={
+                    3 + // barcode, name, brand
+                    1 + // image
+                    productAttributes.length +
+                    (isLoggedIn ? 3 : 0) // checkbox, AI enriched, actions (only for authenticated)
+                  }
+                  align="center"
+                >
+                  No products found
+                </TableCell>
+              </TableRow>
+            ) : (
+              products.map(product => (
+                <TableRow
+                  key={product.id}
+                  hover
+                  selected={selectedProducts.includes(product.id)}
+                >
+                  {/* Only show checkbox for authenticated users */}
+                  {isLoggedIn && (
                     <TableCell padding="checkbox">
                       <Checkbox
                         checked={selectedProducts.includes(product.id)}
                         onChange={() => handleProductSelect(product.id)}
-                        size="small"
                       />
                     </TableCell>
+                  )}
+                  <TableCell>{product.barcode}</TableCell>
+                  <TableCell>
+                    {product.image_url ? (
+                      <Avatar src={product.image_url} alt={product.name} sx={{ width: 40, height: 40 }} />
+                    ) : (
+                      <Avatar sx={{ width: 40, height: 40, bgcolor: 'grey.300' }}>No</Avatar>
+                    )}
+                  </TableCell>
+                  <TableCell>{product.name}</TableCell>
+                  <TableCell>{product.brand}</TableCell>
+                  
+                  {/* Render custom attribute values */}
+                  {productAttributes.map(attr => (
+                    <TableCell key={attr.id}>
+                      {product.attribute_values?.[attr.id] || '-'}
+                    </TableCell>
+                  ))}
+                  
+                  {/* Only show AI enriched column for authenticated users */}
+                  {isLoggedIn && (
                     <TableCell>
-                      <Avatar
-                        src={product.image_url || undefined}
-                        alt={product.name}
-                        variant="rounded"
-                        sx={{ width: 60, height: 60 }}
-                      >
-                        {!product.image_url && product.name.charAt(0)}
-                      </Avatar>
+                      {product.is_ai_enriched ? (
+                        <Chip label="Yes" size="small" color="success" />
+                      ) : (
+                        <Chip label="No" size="small" color="default" />
+                      )}
                     </TableCell>
-                    <TableCell>{product.name}</TableCell>
-                    <TableCell>{product.brand || 'N/A'}</TableCell>
-                    <TableCell>{product.barcode}</TableCell>
-                    
-                    {/* Render attribute values */}
-                    {productAttributes.map(attr => (
-                      <TableCell key={`value-${product.id}-${attr.id}`}>
-                        {product.attribute_values && 
-                         product.attribute_values[attr.id.toString()] ? 
-                         product.attribute_values[attr.id.toString()] : '-'}
-                      </TableCell>
-                    ))}
-                    
-                    <TableCell>{formatDate(product.created_at)}</TableCell>
-                    
-                    <TableCell align="center">
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Tooltip title={product.is_ai_enriched ? "AI Enriched" : "Not Enriched"}>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleEnrichProduct(product.id)}
-                            disabled={loading}
-                          >
-                            <AutoFixHighIcon 
-                              sx={{ 
-                                color: product.is_ai_enriched ? 'purple' : 'green',
-                                fontSize: '1.5rem'
-                              }} 
-                            />
-                          </IconButton>
-                        </Tooltip>
-                        <Typography variant="body2" sx={{ ml: 1 }}>
-                          {product.is_ai_enriched ? 'Yes' : 'No'}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    
-                    <TableCell align="center">
+                  )}
+                  
+                  {/* Only show actions column for authenticated users */}
+                  {isLoggedIn && (
+                    <TableCell>
                       <IconButton
-                        size="small"
+                        aria-label="more"
                         onClick={(e) => handleMenuOpen(e, product.id)}
+                        size="small"
                       >
                         <MoreVertIcon />
                       </IconButton>
                     </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        
-        {/* Custom Filter Dialog */}
-        <FilterDialog />
-        
-        {/* Kebab Menu */}
+                  )}
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      
+      {/* Render pagination */}
+      {renderPagination()}
+      
+      {/* Context menu for actions - only shown for authenticated users */}
+      {isLoggedIn && (
         <Menu
           anchorEl={menuAnchorEl}
           open={Boolean(menuAnchorEl)}
           onClose={handleMenuClose}
         >
-          <MenuItem 
-            onClick={() => {
-              if (selectedProductId) {
-                handleEditProduct(selectedProductId);
-                handleMenuClose();
-              }
-            }}
-          >
+          <MenuItem onClick={() => {
+            if (selectedProductId) {
+              handleEditProduct(selectedProductId);
+            }
+            handleMenuClose();
+          }}>
             <EditIcon fontSize="small" sx={{ mr: 1 }} />
             Edit
           </MenuItem>
-          <MenuItem 
-            onClick={() => {
-              if (selectedProductId) {
-                handleDeleteProduct(selectedProductId);
-                handleMenuClose();
-              }
-            }}
-            sx={{ color: 'error.main' }}
-          >
-            <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+          <MenuItem onClick={() => {
+            if (selectedProductId) {
+              handleEnrichProduct(selectedProductId);
+            }
+            handleMenuClose();
+          }}>
+            <AutoFixHighIcon fontSize="small" sx={{ mr: 1 }} />
+            Enrich
+          </MenuItem>
+          <MenuItem onClick={() => {
+            if (selectedProductId) {
+              handleDeleteProduct(selectedProductId);
+            }
+          }}>
+            <DeleteIcon fontSize="small" sx={{ mr: 1 }} color="error" />
             Delete
           </MenuItem>
         </Menu>
-        
-        {renderPagination()}
-      </Paper>
+      )}
       
-      {/* Product Edit/Create Dock */}
-      <ProductDock
-        open={showProductDock}
-        onClose={() => setShowProductDock(false)}
-        productListId={productListId}
-        productId={editProductId}
-        onSaved={handleProductSaved}
-      />
-    </>
+      {/* Product dock for editing - only shown for authenticated users */}
+      {isLoggedIn && (
+        <ProductDock
+          open={showProductDock}
+          onClose={() => {
+            setShowProductDock(false);
+            setEditProductId(undefined);
+          }}
+          productListId={productListId}
+          productId={editProductId}
+          onSaved={handleProductSaved}
+        />
+      )}
+      
+      {/* Filter dialog - only if both conditions are true */}
+      {showFilterDialog && selectedFilter && (
+        <Dialog
+          open={showFilterDialog}
+          onClose={handleCloseFilterDialog}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle>
+            Filter by {selectedFilter?.name}
+            <IconButton
+              onClick={handleCloseFilterDialog}
+              sx={{ position: 'absolute', right: 8, top: 8 }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label={`Enter ${selectedFilter?.name} value`}
+              fullWidth
+              variant="outlined"
+              value={tempCustomFilters[selectedFilter?.id.toString()] || ''}
+              onChange={(e) => setTempCustomFilters({
+                ...tempCustomFilters,
+                [selectedFilter?.id.toString()]: e.target.value
+              })}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseFilterDialog} color="primary">
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                // Add this custom filter to the list
+                if (selectedFilter && tempCustomFilters[selectedFilter.id.toString()]) {
+                  setSelectedFilters({
+                    ...selectedFilters,
+                    [selectedFilter.id.toString()]: tempCustomFilters[selectedFilter.id.toString()]
+                  });
+                  
+                  // Reset dialog
+                  handleCloseFilterDialog();
+                }
+              }} 
+              color="primary"
+            >
+              Apply
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
+    </Box>
   );
 };
 

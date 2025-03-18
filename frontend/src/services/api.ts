@@ -8,10 +8,11 @@ export interface LoginRequest {
 }
 
 export interface SignupRequest {
-  fullName: string;
+  name: string;
   username: string;
   password: string;
-  company: string;
+  company_name: string;
+  inviteCode?: string;
 }
 
 export interface User {
@@ -19,6 +20,7 @@ export interface User {
   name: string;
   companyId: number;
   company_name: string;
+  user_type: string;
 }
 
 export interface AuthResponse {
@@ -44,7 +46,7 @@ export interface ProductPipeline {
   total_batches: number | null;
   processed_batches: number | null;
   last_processed_at: number | null;
-  created_at: number;
+  createdAt: number;
 }
 
 export interface CreateProductListRequest {
@@ -171,9 +173,18 @@ const login = async (data: LoginRequest): Promise<ApiResponse<AuthResponse>> => 
   try {
     const response = await api.post<ApiResponse<AuthResponse>>('/auth/login', data);
     
-    // Store token in localStorage
+    // Store token and user data in localStorage
     if (response.data.success && response.data.data.token) {
       localStorage.setItem('token', response.data.data.token);
+      localStorage.setItem('userId', response.data.data.user.id.toString());
+      localStorage.setItem('userName', response.data.data.user.name);
+      localStorage.setItem('companyId', response.data.data.user.companyId.toString());
+      localStorage.setItem('companyName', response.data.data.user.company_name);
+      
+      // Save user type if available
+      if (response.data.data.user.user_type) {
+        localStorage.setItem('userType', response.data.data.user.user_type);
+      }
     }
     
     return response.data;
@@ -194,9 +205,18 @@ const signup = async (data: SignupRequest): Promise<ApiResponse<AuthResponse>> =
   try {
     const response = await api.post<ApiResponse<AuthResponse>>('/auth/signup', data);
     
-    // Store token in localStorage
+    // Store token and user data in localStorage
     if (response.data.success && response.data.data.token) {
       localStorage.setItem('token', response.data.data.token);
+      localStorage.setItem('userId', response.data.data.user.id.toString());
+      localStorage.setItem('userName', response.data.data.user.name);
+      localStorage.setItem('companyId', response.data.data.user.companyId.toString());
+      localStorage.setItem('companyName', response.data.data.user.company_name);
+      
+      // Save user type if available
+      if (response.data.data.user.user_type) {
+        localStorage.setItem('userType', response.data.data.user.user_type);
+      }
     }
     
     return response.data;
@@ -216,8 +236,11 @@ const signup = async (data: SignupRequest): Promise<ApiResponse<AuthResponse>> =
 const logout = () => {
   // Clear all auth-related items from localStorage
   localStorage.removeItem('token');
+  localStorage.removeItem('userId');
   localStorage.removeItem('userName');
+  localStorage.removeItem('companyId');
   localStorage.removeItem('companyName');
+  localStorage.removeItem('userType');
   
   // Clear any authorization headers
   delete api.defaults.headers.common['Authorization'];
@@ -252,7 +275,7 @@ const apiMethods = {
   },
 
   /**
-   * Get products by product list ID
+   * Get products by product list ID (with or without authentication)
    */
   getProducts: async (
     productListId: number,
@@ -261,7 +284,8 @@ const apiMethods = {
     searchTerm: string = '',
     filters: ProductsFilters = {},
     sortField: string = 'created_at',
-    sortOrder: 'ASC' | 'DESC' = 'ASC'
+    sortOrder: 'ASC' | 'DESC' = 'ASC',
+    companyId?: number
   ) => {
     console.log(`API getProducts: requesting page=${page}, limit=${limit}, sortField=${sortField}`);
     
@@ -276,6 +300,10 @@ const apiMethods = {
     if (brand) params.append('brand', brand);
     if (createdFrom) params.append('createdFrom', createdFrom.toString());
     if (createdTo) params.append('createdTo', createdTo.toString());
+    
+    console.log('companyId', companyId);
+    // Add company_id for public access
+    if (companyId) params.append('company_id', companyId.toString());
     
     // Add sort parameters, handling both regular and custom field sorting
     if (sortField) params.append('sortField', sortField);
@@ -319,9 +347,15 @@ const apiMethods = {
   /**
    * Get attributes for a product list
    */
-  getAttributes: async (productListId: number) => {
+  getAttributes: async (productListId: number, companyId?: number) => {
+    // Add company_id for public access if provided
+    const params = new URLSearchParams();
+    if (companyId) params.append('company_id', companyId.toString());
+    
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    
     const response = await api.get<ApiResponse<AttributesResponse>>(
-      `${config.apiBaseUrl}/product-list/${productListId}/attributes`
+      `${config.apiBaseUrl}/product-list/${productListId}/attributes${queryString}`
     );
     return response.data;
   },
@@ -432,12 +466,19 @@ const apiMethods = {
   },
 
   /**
-   * Get a single product by ID
+   * Get a single product by ID (with or without authentication)
    */
-  getProduct: async (productListId: number, productId: number) => {
+  getProduct: async (productListId: number, productId: number, companyId?: number) => {
     const productsUrl = config.endpoints.productsBase.replace('{productListId}', productListId.toString());
+    
+    // Add company_id for public access if provided
+    const params = new URLSearchParams();
+    if (companyId) params.append('company_id', companyId.toString());
+    
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    
     const response = await api.get<ApiResponse<Product>>(
-      `${config.apiBaseUrl}${productsUrl}/${productId}`
+      `${config.apiBaseUrl}${productsUrl}/${productId}${queryString}`
     );
     return response.data;
   },
@@ -445,10 +486,17 @@ const apiMethods = {
   /**
    * Update a product
    */
-  updateProduct: async (productListId: number, productId: number, data: Partial<Product>) => {
+  updateProduct: async (productListId: number, productId: number, data: Partial<Product>, companyId?: number) => {
     const productsUrl = config.endpoints.productsBase.replace('{productListId}', productListId.toString());
+    
+    // Add company_id for public access if provided
+    const params = new URLSearchParams();
+    if (companyId) params.append('company_id', companyId.toString());
+    
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    
     const response = await api.put<ApiResponse<Product>>(
-      `${config.apiBaseUrl}${productsUrl}/${productId}`,
+      `${config.apiBaseUrl}${productsUrl}/${productId}${queryString}`,
       data
     );
     return response.data;
@@ -457,10 +505,17 @@ const apiMethods = {
   /**
    * Create a new product
    */
-  createProduct: async (productListId: number, data: Omit<Product, 'id' | 'created_at' | 'is_ai_enriched'>) => {
+  createProduct: async (productListId: number, data: Omit<Product, 'id' | 'created_at' | 'is_ai_enriched'>, companyId?: number) => {
     const productsUrl = config.endpoints.productsBase.replace('{productListId}', productListId.toString());
+    
+    // Add company_id for public access if provided
+    const params = new URLSearchParams();
+    if (companyId) params.append('company_id', companyId.toString());
+    
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    
     const response = await api.post<ApiResponse<Product>>(
-      `${config.apiBaseUrl}${productsUrl}`,
+      `${config.apiBaseUrl}${productsUrl}${queryString}`,
       data
     );
     return response.data;
@@ -474,7 +529,7 @@ const apiMethods = {
     return response.data;
   },
 
-getCompanyByInviteCode: async (inviteCode: string) => {
+  getCompanyByInviteCode: async (inviteCode: string) => {
     const response = await axios.get<ApiResponse<{company_id: number, company_name: string, product_list_id: number}>>(
       `${config.apiBaseUrl}/auth/company-details/${inviteCode}`
     );
@@ -486,7 +541,76 @@ getCompanyByInviteCode: async (inviteCode: string) => {
       `${config.apiBaseUrl}/product-list/${productListId}/data`
     );
     return response.data;
-  }
+  },
+
+  /**
+   * Check if an invite code is valid
+   */
+  checkInviteCodeValidity: async (inviteCode: string) => {
+    const response = await axios.get<ApiResponse<{isValid: boolean}>>(
+      `${config.apiBaseUrl}/auth/invitecode/validity/${inviteCode}`
+    );
+    return response.data;
+  },
+
+  /**
+   * Get a presigned URL for direct upload to S3
+   */
+  getPresignedUploadUrl: async (productListId: number, fileName: string) => {
+    const response = await api.get<ApiResponse<{
+      url: string,
+      bucket: string,
+      key: string,
+      expires: number
+    }>>(
+      `${config.apiBaseUrl}/product-list/upload/presigned-url?productListId=${productListId}&fileName=${encodeURIComponent(fileName)}`
+    );
+    return response.data;
+  },
+
+  /**
+   * Upload a file directly to S3 using a presigned URL
+   */
+  uploadFileToS3: async (presignedUrl: string, file: File) => {
+    try {
+      await axios.put(presignedUrl, file, {
+        headers: {
+          'Content-Type': 'text/csv'
+        }
+      });
+      
+      return {
+        success: true,
+        data: { message: 'File uploaded successfully' },
+        errMsg: null
+      } as ApiResponse<{ message: string }>;
+    } catch (error) {
+      console.error('Error uploading to S3:', error);
+      return {
+        success: false,
+        data: null as unknown as { message: string },
+        errMsg: 'Failed to upload file to S3'
+      } as ApiResponse<{ message: string }>;
+    }
+  },
+
+  /**
+   * Get the URL for downloading a sample CSV file
+   */
+  getSampleFileUrl: () => {
+    return `${config.apiBaseUrl}/product-list/upload/sample`;
+  },
+
+  /**
+   * Update product list meta after file upload
+   */
+  updateProductListMeta: async (productListId: number, filePath: string, inviteCode?: string) => {
+    const response = await api.post<ApiResponse<{ id: number }>>(
+      `${config.apiBaseUrl}/product-list/${productListId}/meta`,
+      { filePath, inviteCode }
+    );
+    return response.data;
+  },
 };
 
 // Export the API methods

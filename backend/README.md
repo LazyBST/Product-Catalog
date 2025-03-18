@@ -46,6 +46,17 @@ This is the Express.js backend for the AI-ventory application. It provides APIs 
 - `GET /api/product-list` - Get all product lists
 - `GET /api/product-list/pipeline` - Get product list pipeline data
 
+### File Upload
+
+- `GET /api/product-list/upload/presigned-url` - Get a presigned URL for direct upload to S3
+  - Query parameters:
+    - `productListId` - ID of the product list
+    - `fileName` - Name of the file to upload
+  - Requires authentication
+
+- `GET /api/product-list/upload/sample` - Download a sample CSV file with headers
+  - No authentication required
+
 ## Response Format
 
 All API responses follow this structure:
@@ -59,4 +70,13 @@ All API responses follow this structure:
 
 - `success`: Boolean indicating if the request was successful
 - `data`: The requested data (null if error)
-- `errMsg`: Error message (null if successful) 
+- `errMsg`: Error message (null if successful)
+
+### Environment Variables
+
+Make sure to set these additional environment variables for S3 integration:
+
+- `AWS_ACCESS_KEY_ID` - AWS access key ID
+- `AWS_SECRET_ACCESS_KEY` - AWS secret access key
+- `AWS_REGION` - AWS region (defaults to 'us-east-1')
+- `S3_BUCKET_NAME` - S3 bucket name for file uploads 

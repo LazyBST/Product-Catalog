@@ -43,6 +43,9 @@ const login = async (req, res) => {
     }
 
     const user = userResult.rows[0];
+    
+    // Debug log to check what's in the user object
+    console.log("User from database:", user);
 
     // Compare passwords
     const passwordMatch = await bcrypt.compare(password, user.password);
@@ -54,28 +57,38 @@ const login = async (req, res) => {
       });
     }
 
-    // Generate JWT token with company ID
+    // Ensure user_type exists, default to COMPANY_USER if not
+    const userType = user.user_type || "COMPANY_USER";
+
+    // Generate JWT token with company ID and user type
     const token = jwt.sign(
       {
         userId: user.id,
         companyId: user.company_id,
+        userType: userType
       },
       process.env.JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "7d" }
     );
+
+    // Create response object
+    const responseData = {
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        user_type: userType,
+        companyId: user.company_id,
+        company_name: user.company_name,
+      }
+    };
+    
+    // Debug log the response we're sending
+    console.log("Response being sent:", responseData);
 
     res.json({
       success: true,
-      data: {
-        token,
-        user: {
-          id: user.id,
-          name: user.name,
-          user_type: user.user_type,
-          companyId: user.company_id,
-          company_name: user.company_name,
-        },
-      },
+      data: responseData,
       errMsg: null,
     });
   } catch (error) {
@@ -114,7 +127,7 @@ const signup = async (req, res) => {
     }
 
     let companyId = null;
-    let userType = "admin"; // Default user type
+    let userType = "COMPANY_USER"; // Default user type - uppercase to match enum
     let companyName = company_name;
 
     // Start transaction
@@ -253,8 +266,47 @@ const getCopanyDetailsForInviteCode = async (req, res) => {
   }
 };
 
+const checkInviteCodeValidity = async (req, res) => {
+  try {
+    const { inviteCode } = req.params;
+    
+    if (!inviteCode) {
+      return res.status(400).json({
+        success: false,
+        data: { isValid: false },
+        errMsg: "Invite code is required"
+      });
+    }
+    
+    const validityQuery = `
+      SELECT EXISTS (
+        SELECT 1 FROM product_list_meta 
+        WHERE invite_code = $1 
+        AND is_invite_expired = FALSE
+      ) as is_valid
+    `;
+    
+    const result = await pool.query(validityQuery, [inviteCode]);
+    const isValid = result.rows[0]?.is_valid || false;
+    
+    return res.json({
+      success: true,
+      data: { isValid },
+      errMsg: null
+    });
+  } catch (error) {
+    console.error("Error checking invite code validity:", error);
+    return res.status(500).json({
+      success: false,
+      data: { isValid: false },
+      errMsg: "Server error while checking invite code validity"
+    });
+  }
+};
+
 module.exports = {
   login,
   signup,
   getCopanyDetailsForInviteCode,
+  checkInviteCodeValidity
 };

@@ -124,6 +124,7 @@ const getProductListPipeline = async (req, res) => {
       SELECT 
         pl.id, 
         pl.list_name,
+        pl.created_at,
         plm.file_status,
         plm.total_batches,
         plm.processed_batches,
@@ -187,9 +188,215 @@ const generateShareInvite = async (req, res) => {
   }
 };
 
+/**
+ * Generate a presigned URL for direct upload to S3
+ */
+const getPresignedUploadUrl = async (req, res) => {
+  try {
+    const companyId = req.user.companyId;
+    const { productListId, fileName } = req.query;
+    
+    if (!productListId || !fileName) {
+      return res.status(400).json({
+        success: false,
+        errMsg: 'Product list ID and file name are required'
+      });
+    }
+    
+    // Check if the product list belongs to the company
+    const checkQuery = `
+      SELECT id FROM product_list 
+      WHERE company_id = $1 AND id = $2
+    `;
+    const checkResult = await pool.query(checkQuery, [companyId, productListId]);
+    
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        errMsg: 'Product list not found'
+      });
+    }
+    
+    // Get S3 bucket from environment variables
+    const bucketName = process.env.S3_BUCKET_NAME;
+    if (!bucketName) {
+      return res.status(500).json({
+        success: false,
+        errMsg: 'S3 bucket name not configured'
+      });
+    }
+    
+    // Generate a cleaned filename (remove any path info, etc)
+    const cleanFileName = fileName.replace(/^.*[\\/]/, '').replace(/[^\w\d.-]/g, '_');
+    
+    // Create the S3 key (path) using the pattern: <bucket_name>/company_id/product-list-id/original/file.csv
+    const s3Key = `${companyId}/${productListId}/original/${cleanFileName}`;
+    
+    // Load AWS SDK
+    const AWS = require('aws-sdk');
+    
+    // Configure AWS with credentials from environment variables
+    AWS.config.update({
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      region: process.env.AWS_REGION || 'us-east-1'
+    });
+    
+    // Create S3 service object
+    const s3 = new AWS.S3();
+    
+    // Set up parameters for presigned URL
+    const params = {
+      Bucket: bucketName,
+      Key: s3Key,
+      Expires: 3600, // URL expires in 1 hour
+      ContentType: 'text/csv'
+    };
+    
+    // Generate the presigned URL
+    const presignedUrl = s3.getSignedUrl('putObject', params);
+    
+    // Return the presigned URL and file information
+    res.json({
+      success: true,
+      data: {
+        url: presignedUrl,
+        bucket: bucketName,
+        key: s3Key,
+        expires: 3600
+      },
+      errMsg: null
+    });
+  } catch (error) {
+    console.error('Error generating presigned URL:', error);
+    res.status(500).json({
+      success: false,
+      errMsg: 'Server error generating presigned URL'
+    });
+  }
+};
+
+/**
+ * Get a sample file for product upload
+ */
+const getSampleFile = (req, res) => {
+  try {
+    // Create a CSV with headers
+    const csvHeaders = 'Product Name,Image Url,Brand,Barcode';
+    
+    // Set response headers for file download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="product_upload_sample.csv"');
+    
+    // Send the CSV content
+    res.send(csvHeaders);
+  } catch (error) {
+    console.error('Error generating sample file:', error);
+    res.status(500).json({
+      success: false,
+      errMsg: 'Server error generating sample file'
+    });
+  }
+};
+
+/**
+ * Update product list meta after file upload
+ */
+const updateProductListMeta = async (req, res) => {
+  try {
+    const companyId = req.user.companyId;
+    const { productListId } = req.params;
+    const { filePath, inviteCode } = req.body;
+    
+    if (!productListId || !filePath) {
+      return res.status(400).json({
+        success: false,
+        errMsg: 'Product list ID and file path are required'
+      });
+    }
+    
+    // Check if the product list belongs to the company
+    const checkQuery = `
+      SELECT id FROM product_list 
+      WHERE company_id = $1 AND id = $2
+    `;
+    const checkResult = await pool.query(checkQuery, [companyId, productListId]);
+    
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        errMsg: 'Product list not found'
+      });
+    }
+    
+    // If invite code is present, update the existing row
+    if (inviteCode) {
+      const updateQuery = `
+        UPDATE product_list_meta
+        SET 
+          file_path = $1,
+          file_status = 'uploaded',
+          is_invite_expired = TRUE,
+          updated_at = $2
+        WHERE 
+          invite_code = $3 AND company_id = $4
+        RETURNING id
+      `;
+      
+      const now = Math.floor(Date.now() / 1000);
+      const updateResult = await pool.query(updateQuery, [filePath, now, inviteCode, companyId]);
+      
+      if (updateResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          errMsg: 'Invite code not found'
+        });
+      }
+      
+      return res.json({
+        success: true,
+        data: { id: updateResult.rows[0].id },
+        errMsg: null
+      });
+    } else {
+      // If no invite code, create a new entry
+      const insertQuery = `
+        INSERT INTO product_list_meta (
+          company_id,
+          product_list_id,
+          file_path,
+          file_status,
+          created_at,
+          updated_at
+        )
+        VALUES ($1, $2, $3, 'uploaded', $4, $4)
+        RETURNING id
+      `;
+      
+      const now = Math.floor(Date.now() / 1000);
+      const insertResult = await pool.query(insertQuery, [companyId, productListId, filePath, now]);
+      
+      return res.json({
+        success: true,
+        data: { id: insertResult.rows[0].id },
+        errMsg: null
+      });
+    }
+  } catch (error) {
+    console.error('Error updating product list meta:', error);
+    res.status(500).json({
+      success: false,
+      errMsg: 'Server error updating product list meta'
+    });
+  }
+};
+
 module.exports = {
   getProductLists,
   createProductList,
   getProductListPipeline,
-  generateShareInvite
+  generateShareInvite,
+  getPresignedUploadUrl,
+  getSampleFile,
+  updateProductListMeta
 }; 

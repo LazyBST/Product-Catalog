@@ -106,8 +106,25 @@ const FirstTable = () => {
     });
   }
 
-  const handleShareList = (id: number) => {
-    console.log(id);
+  const handleShareList = (id: number, listName: string) => {
+    // Create a shareable link to the product page
+    const currentOrigin = window.location.origin;
+    
+    // Get company id from local storage - this is set in the products page
+    const companyId = localStorage.getItem('sharedCompanyId');
+    
+    // Add company_id as query parameter
+    const shareLink = `${currentOrigin}/products/${id}/${encodeURIComponent(listName)}?company_id=${companyId}`;
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(shareLink);
+    
+    // Show notification
+    setSnackbar({
+      open: true,
+      message: 'Product list link copied to clipboard!',
+      severity: 'success'
+    });
   }
 
   return (
@@ -225,7 +242,7 @@ const FirstTable = () => {
                   </TableCell>
                   <TableCell align="center">
                     <IconButton>
-                      <ShareIcon onClick={() => handleShareList(row.id)}/>
+                      <ShareIcon onClick={() => handleShareList(row.id, row.listName)}/>
                     </IconButton>
                   </TableCell>
                 </TableRow>
