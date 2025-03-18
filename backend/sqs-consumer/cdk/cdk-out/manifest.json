@@ -1,0 +1,95 @@
+{
+  "version": "40.0.0",
+  "artifacts": {
+    "SqsConsumerStack.assets": {
+      "type": "cdk:asset-manifest",
+      "properties": {
+        "file": "SqsConsumerStack.assets.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+      }
+    },
+    "SqsConsumerStack": {
+      "type": "aws:cloudformation:stack",
+      "environment": "aws://869935084697/ap-south-1",
+      "properties": {
+        "templateFile": "SqsConsumerStack.template.json",
+        "terminationProtection": false,
+        "validateOnSynth": false,
+        "assumeRoleArn": "arn:${AWS::Partition}:iam::869935084697:role/cdk-hnb659fds-deploy-role-869935084697-ap-south-1",
+        "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::869935084697:role/cdk-hnb659fds-cfn-exec-role-869935084697-ap-south-1",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-869935084697-ap-south-1/9031558c4778be6fd17c88427923f91d763fd1e89e7354c8cf6532a12f6472a5.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
+        "additionalDependencies": [
+          "SqsConsumerStack.assets"
+        ],
+        "lookupRole": {
+          "arn": "arn:${AWS::Partition}:iam::869935084697:role/cdk-hnb659fds-lookup-role-869935084697-ap-south-1",
+          "requiresBootstrapStackVersion": 8,
+          "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+        }
+      },
+      "dependencies": [
+        "SqsConsumerStack.assets"
+      ],
+      "metadata": {
+        "/SqsConsumerStack/SqsConsumerFunction/ServiceRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SqsConsumerFunctionServiceRole3CB9A26D"
+          }
+        ],
+        "/SqsConsumerStack/SqsConsumerFunction/ServiceRole/DefaultPolicy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SqsConsumerFunctionServiceRoleDefaultPolicyC73BC081"
+          }
+        ],
+        "/SqsConsumerStack/SqsConsumerFunction/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SqsConsumerFunction193D7109"
+          }
+        ],
+        "/SqsConsumerStack/SqsConsumerFunction/SqsEventSource:SqsConsumerStackImportedFileUploadQueue27A43E25/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SqsConsumerFunctionSqsEventSourceSqsConsumerStackImportedFileUploadQueue27A43E251668B69E"
+          }
+        ],
+        "/SqsConsumerStack/SqsConsumerFunctionArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SqsConsumerFunctionArn"
+          }
+        ],
+        "/SqsConsumerStack/CDKMetadata/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadata"
+          }
+        ],
+        "/SqsConsumerStack/BootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "BootstrapVersion"
+          }
+        ],
+        "/SqsConsumerStack/CheckBootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CheckBootstrapVersion"
+          }
+        ]
+      },
+      "displayName": "SqsConsumerStack"
+    },
+    "Tree": {
+      "type": "cdk:tree",
+      "properties": {
+        "file": "tree.json"
+      }
+    }
+  }
+}

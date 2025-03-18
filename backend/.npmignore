@@ -1,0 +1,29 @@
+# CDK directory
+cdk/
+
+# Dev files
+.git/
+.github/
+.vscode/
+.idea/
+*.md
+*.log
+.gitignore
+docker-compose.yml
+Dockerfile
+
+# Dev dependencies
+node_modules/
+npm-debug.log
+test/
+
+# Local environment files
+.env.local
+.env.development
+
+# Build artifacts and temp files
+.serverless/
+.webpack/
+coverage/
+dist/
+tmp/ 

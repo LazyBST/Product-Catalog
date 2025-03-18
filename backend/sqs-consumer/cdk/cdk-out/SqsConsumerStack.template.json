@@ -1,0 +1,196 @@
+{
+ "Description": "SQS Consumer Lambda Function",
+ "Resources": {
+  "SqsConsumerFunctionServiceRole3CB9A26D": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "SqsConsumerStack/SqsConsumerFunction/ServiceRole/Resource"
+   }
+  },
+  "SqsConsumerFunctionServiceRoleDefaultPolicyC73BC081": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "sqs:ReceiveMessage",
+        "sqs:ChangeMessageVisibility",
+        "sqs:GetQueueUrl",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes"
+       ],
+       "Effect": "Allow",
+       "Resource": "arn:aws:sqs:ap-south-1:869935084697:FileUploadQueue"
+      },
+      {
+       "Action": [
+        "s3:GetObject",
+        "s3:HeadObject",
+        "s3:ListBucket"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        "arn:aws:s3:::dev-product-catalog-files",
+        "arn:aws:s3:::dev-product-catalog-files/*"
+       ]
+      },
+      {
+       "Action": [
+        "s3:PutObject",
+        "s3:PutObjectAcl",
+        "s3:ListBucket"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        "arn:aws:s3:::batched-product-catalog-files",
+        "arn:aws:s3:::batched-product-catalog-files/*"
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "SqsConsumerFunctionServiceRoleDefaultPolicyC73BC081",
+    "Roles": [
+     {
+      "Ref": "SqsConsumerFunctionServiceRole3CB9A26D"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "SqsConsumerStack/SqsConsumerFunction/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "SqsConsumerFunction193D7109": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-869935084697-ap-south-1",
+     "S3Key": "73de256d2d672be6548b0cbdb8854fcca22de5a25c9d878d85effd856599b5e9.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "NODE_ENV": "production",
+      "DESTINATION_BUCKET": "batched-product-catalog-files"
+     }
+    },
+    "Handler": "index.handler",
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "SqsConsumerFunctionServiceRole3CB9A26D",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs18.x",
+    "Timeout": 300
+   },
+   "DependsOn": [
+    "SqsConsumerFunctionServiceRoleDefaultPolicyC73BC081",
+    "SqsConsumerFunctionServiceRole3CB9A26D"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "SqsConsumerStack/SqsConsumerFunction/Resource",
+    "aws:asset:path": "asset.73de256d2d672be6548b0cbdb8854fcca22de5a25c9d878d85effd856599b5e9",
+    "aws:asset:is-bundled": false,
+    "aws:asset:property": "Code"
+   }
+  },
+  "SqsConsumerFunctionSqsEventSourceSqsConsumerStackImportedFileUploadQueue27A43E251668B69E": {
+   "Type": "AWS::Lambda::EventSourceMapping",
+   "Properties": {
+    "BatchSize": 1,
+    "Enabled": true,
+    "EventSourceArn": "arn:aws:sqs:ap-south-1:869935084697:FileUploadQueue",
+    "FunctionName": {
+     "Ref": "SqsConsumerFunction193D7109"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SqsConsumerStack/SqsConsumerFunction/SqsEventSource:SqsConsumerStackImportedFileUploadQueue27A43E25/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/2WOzQ6CQAyEn8V7qeJP4lWN3owKD2DqUs0K7KLtagzh3c2i8eLpm3YmnY4xnU8xHdBTElOUSWVP2OZKpgR6yrGVm+AhcOAlCUNF9akgbDfBGbXewersfnr9YKe5D3fDW2oa6y7R/t92YKnGNvMVx0DPva+secXxozqQyZFEWAUXESATXAZTssZHOshY+pvQu7nS5du3C9oE7cD5gvEqw0c6x/EIZ4OrWJvcg1NbM2YfvgEt6MWu/gAAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "SqsConsumerStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "SqsConsumerFunctionArn": {
+   "Description": "ARN of the SQS Consumer Lambda Function",
+   "Value": {
+    "Fn::GetAtt": [
+     "SqsConsumerFunction193D7109",
+     "Arn"
+    ]
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

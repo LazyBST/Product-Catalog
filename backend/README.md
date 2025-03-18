@@ -76,7 +76,53 @@ All API responses follow this structure:
 
 Make sure to set these additional environment variables for S3 integration:
 
-- `AWS_ACCESS_KEY_ID` - AWS access key ID
-- `AWS_SECRET_ACCESS_KEY` - AWS secret access key
-- `AWS_REGION` - AWS region (defaults to 'us-east-1')
-- `S3_BUCKET_NAME` - S3 bucket name for file uploads 
+- `MY_AWS_ACCESS_KEY_ID` - AWS access key ID
+- `MY_AWS_SECRET_ACCESS_KEY` - AWS secret access key
+- `MY_AWS_REGION` - AWS region (defaults to 'us-east-1')
+- `MY_S3_BUCKET_NAME` - S3 bucket name for file uploads 
+
+
+
+
+
+
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Action": [
+				"sqs:ReceiveMessage",
+				"sqs:ChangeMessageVisibility",
+				"sqs:GetQueueUrl",
+				"sqs:DeleteMessage",
+				"sqs:GetQueueAttributes"
+			],
+			"Resource": "arn:aws:sqs:ap-south-1:869935084697:FileUploadQueue",
+			"Effect": "Allow"
+		},
+		{
+			"Action": [
+				"s3:GetObject",
+				"s3:HeadObject",
+				"s3:ListBucket"
+			],
+			"Resource": [
+				"arn:aws:s3:::dev-product-catalog-files",
+				"arn:aws:s3:::dev-product-catalog-files/*"
+			],
+			"Effect": "Allow"
+		},
+		{
+			"Action": [
+				"s3:PutObject",
+				"s3:PutObjectAcl",
+				"s3:ListBucket"
+			],
+			"Resource": [
+				"arn:aws:s3:::batched-product-catalog-files",
+				"arn:aws:s3:::batched-product-catalog-files/*"
+			],
+			"Effect": "Allow"
+		}
+	]
+}

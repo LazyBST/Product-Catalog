@@ -1,0 +1,27 @@
+{
+  "app": "npx ts-node --prefer-ts-exts src/app.ts",
+  "context": {
+    "@aws-cdk/core:enableDiffNoFail": "true",
+    "@aws-cdk/aws-s3:serverAccessLogsUseBucketPolicy": true,
+    "environment": "dev",
+    "service": "sqs-consumer"
+  },
+  "output": "cdk-out",
+  "watch": {
+    "include": [
+      "**"
+    ],
+    "exclude": [
+      "README.md",
+      "cdk*.json",
+      "**/*.d.ts",
+      "**/*.js",
+      "tsconfig.json",
+      "package*.json",
+      "yarn.lock",
+      "node_modules",
+      "test"
+    ]
+  },
+  "requireApproval": "never"
+} 

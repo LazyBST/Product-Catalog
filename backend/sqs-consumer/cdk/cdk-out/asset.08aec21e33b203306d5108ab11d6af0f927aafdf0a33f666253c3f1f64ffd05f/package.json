@@ -1,0 +1,9 @@
+{
+  "name": "sqs-consumer",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "csv-parser": "^3.0.0",
+    "csv-writer": "^1.6.0"
+  }
+}

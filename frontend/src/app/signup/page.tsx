@@ -116,7 +116,7 @@ const SignUp = () => {
       if (response.success) {
         // Preserve all query parameters when redirecting
         const queryParams = new URLSearchParams(window.location.search);
-        const redirectUrl = queryParams.toString() ? `/dashboard?${queryParams.toString()}` : '/dashboard';
+        const redirectUrl = queryParams?.toString() ? `/dashboard?${queryParams?.toString()}` : '/dashboard';
         router.push(redirectUrl);
       } else {
         setError(response.errMsg || 'Signup failed');

@@ -1,0 +1,312 @@
+{
+  "version": "tree-0.1",
+  "tree": {
+    "id": "App",
+    "path": "",
+    "children": {
+      "SqsConsumerStack": {
+        "id": "SqsConsumerStack",
+        "path": "SqsConsumerStack",
+        "children": {
+          "ImportedFileUploadQueue": {
+            "id": "ImportedFileUploadQueue",
+            "path": "SqsConsumerStack/ImportedFileUploadQueue",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_sqs.QueueBase",
+              "version": "2.184.1",
+              "metadata": []
+            }
+          },
+          "SqsConsumerFunction": {
+            "id": "SqsConsumerFunction",
+            "path": "SqsConsumerStack/SqsConsumerFunction",
+            "children": {
+              "ServiceRole": {
+                "id": "ServiceRole",
+                "path": "SqsConsumerStack/SqsConsumerFunction/ServiceRole",
+                "children": {
+                  "ImportServiceRole": {
+                    "id": "ImportServiceRole",
+                    "path": "SqsConsumerStack/SqsConsumerFunction/ServiceRole/ImportServiceRole",
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.Resource",
+                      "version": "2.184.1",
+                      "metadata": []
+                    }
+                  },
+                  "Resource": {
+                    "id": "Resource",
+                    "path": "SqsConsumerStack/SqsConsumerFunction/ServiceRole/Resource",
+                    "attributes": {
+                      "aws:cdk:cloudformation:type": "AWS::IAM::Role",
+                      "aws:cdk:cloudformation:props": {
+                        "assumeRolePolicyDocument": {
+                          "Statement": [
+                            {
+                              "Action": "sts:AssumeRole",
+                              "Effect": "Allow",
+                              "Principal": {
+                                "Service": "lambda.amazonaws.com"
+                              }
+                            }
+                          ],
+                          "Version": "2012-10-17"
+                        },
+                        "managedPolicyArns": [
+                          {
+                            "Fn::Join": [
+                              "",
+                              [
+                                "arn:",
+                                {
+                                  "Ref": "AWS::Partition"
+                                },
+                                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+                              ]
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_iam.CfnRole",
+                      "version": "2.184.1"
+                    }
+                  },
+                  "DefaultPolicy": {
+                    "id": "DefaultPolicy",
+                    "path": "SqsConsumerStack/SqsConsumerFunction/ServiceRole/DefaultPolicy",
+                    "children": {
+                      "Resource": {
+                        "id": "Resource",
+                        "path": "SqsConsumerStack/SqsConsumerFunction/ServiceRole/DefaultPolicy/Resource",
+                        "attributes": {
+                          "aws:cdk:cloudformation:type": "AWS::IAM::Policy",
+                          "aws:cdk:cloudformation:props": {
+                            "policyDocument": {
+                              "Statement": [
+                                {
+                                  "Action": [
+                                    "sqs:ReceiveMessage",
+                                    "sqs:ChangeMessageVisibility",
+                                    "sqs:GetQueueUrl",
+                                    "sqs:DeleteMessage",
+                                    "sqs:GetQueueAttributes"
+                                  ],
+                                  "Effect": "Allow",
+                                  "Resource": "arn:aws:sqs:ap-south-1:869935084697:FileUploadQueue"
+                                },
+                                {
+                                  "Action": [
+                                    "s3:GetObject",
+                                    "s3:HeadObject",
+                                    "s3:ListBucket"
+                                  ],
+                                  "Effect": "Allow",
+                                  "Resource": [
+                                    "arn:aws:s3:::dev-product-catalog-files",
+                                    "arn:aws:s3:::dev-product-catalog-files/*"
+                                  ]
+                                },
+                                {
+                                  "Action": [
+                                    "s3:PutObject",
+                                    "s3:PutObjectAcl",
+                                    "s3:ListBucket"
+                                  ],
+                                  "Effect": "Allow",
+                                  "Resource": [
+                                    "arn:aws:s3:::batched-product-catalog-files",
+                                    "arn:aws:s3:::batched-product-catalog-files/*"
+                                  ]
+                                }
+                              ],
+                              "Version": "2012-10-17"
+                            },
+                            "policyName": "SqsConsumerFunctionServiceRoleDefaultPolicyC73BC081",
+                            "roles": [
+                              {
+                                "Ref": "SqsConsumerFunctionServiceRole3CB9A26D"
+                              }
+                            ]
+                          }
+                        },
+                        "constructInfo": {
+                          "fqn": "aws-cdk-lib.aws_iam.CfnPolicy",
+                          "version": "2.184.1"
+                        }
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_iam.Policy",
+                      "version": "2.184.1",
+                      "metadata": []
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_iam.Role",
+                  "version": "2.184.1",
+                  "metadata": []
+                }
+              },
+              "Code": {
+                "id": "Code",
+                "path": "SqsConsumerStack/SqsConsumerFunction/Code",
+                "children": {
+                  "Stage": {
+                    "id": "Stage",
+                    "path": "SqsConsumerStack/SqsConsumerFunction/Code/Stage",
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.AssetStaging",
+                      "version": "2.184.1"
+                    }
+                  },
+                  "AssetBucket": {
+                    "id": "AssetBucket",
+                    "path": "SqsConsumerStack/SqsConsumerFunction/Code/AssetBucket",
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_s3.BucketBase",
+                      "version": "2.184.1",
+                      "metadata": []
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_s3_assets.Asset",
+                  "version": "2.184.1"
+                }
+              },
+              "Resource": {
+                "id": "Resource",
+                "path": "SqsConsumerStack/SqsConsumerFunction/Resource",
+                "attributes": {
+                  "aws:cdk:cloudformation:type": "AWS::Lambda::Function",
+                  "aws:cdk:cloudformation:props": {
+                    "code": {
+                      "s3Bucket": "cdk-hnb659fds-assets-869935084697-ap-south-1",
+                      "s3Key": "73de256d2d672be6548b0cbdb8854fcca22de5a25c9d878d85effd856599b5e9.zip"
+                    },
+                    "environment": {
+                      "variables": {
+                        "NODE_ENV": "production",
+                        "DESTINATION_BUCKET": "batched-product-catalog-files"
+                      }
+                    },
+                    "handler": "index.handler",
+                    "memorySize": 512,
+                    "role": {
+                      "Fn::GetAtt": [
+                        "SqsConsumerFunctionServiceRole3CB9A26D",
+                        "Arn"
+                      ]
+                    },
+                    "runtime": "nodejs18.x",
+                    "timeout": 300
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_lambda.CfnFunction",
+                  "version": "2.184.1"
+                }
+              },
+              "SqsEventSource:SqsConsumerStackImportedFileUploadQueue27A43E25": {
+                "id": "SqsEventSource:SqsConsumerStackImportedFileUploadQueue27A43E25",
+                "path": "SqsConsumerStack/SqsConsumerFunction/SqsEventSource:SqsConsumerStackImportedFileUploadQueue27A43E25",
+                "children": {
+                  "Resource": {
+                    "id": "Resource",
+                    "path": "SqsConsumerStack/SqsConsumerFunction/SqsEventSource:SqsConsumerStackImportedFileUploadQueue27A43E25/Resource",
+                    "attributes": {
+                      "aws:cdk:cloudformation:type": "AWS::Lambda::EventSourceMapping",
+                      "aws:cdk:cloudformation:props": {
+                        "batchSize": 1,
+                        "enabled": true,
+                        "eventSourceArn": "arn:aws:sqs:ap-south-1:869935084697:FileUploadQueue",
+                        "functionName": {
+                          "Ref": "SqsConsumerFunction193D7109"
+                        }
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_lambda.CfnEventSourceMapping",
+                      "version": "2.184.1"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_lambda.EventSourceMapping",
+                  "version": "2.184.1",
+                  "metadata": []
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lambda.Function",
+              "version": "2.184.1",
+              "metadata": []
+            }
+          },
+          "SqsConsumerFunctionArn": {
+            "id": "SqsConsumerFunctionArn",
+            "path": "SqsConsumerStack/SqsConsumerFunctionArn",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnOutput",
+              "version": "2.184.1"
+            }
+          },
+          "CDKMetadata": {
+            "id": "CDKMetadata",
+            "path": "SqsConsumerStack/CDKMetadata",
+            "children": {
+              "Default": {
+                "id": "Default",
+                "path": "SqsConsumerStack/CDKMetadata/Default",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.CfnResource",
+                  "version": "2.184.1"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "constructs.Construct",
+              "version": "10.4.2"
+            }
+          },
+          "BootstrapVersion": {
+            "id": "BootstrapVersion",
+            "path": "SqsConsumerStack/BootstrapVersion",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnParameter",
+              "version": "2.184.1"
+            }
+          },
+          "CheckBootstrapVersion": {
+            "id": "CheckBootstrapVersion",
+            "path": "SqsConsumerStack/CheckBootstrapVersion",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnRule",
+              "version": "2.184.1"
+            }
+          }
+        },
+        "constructInfo": {
+          "fqn": "aws-cdk-lib.Stack",
+          "version": "2.184.1"
+        }
+      },
+      "Tree": {
+        "id": "Tree",
+        "path": "Tree",
+        "constructInfo": {
+          "fqn": "constructs.Construct",
+          "version": "10.4.2"
+        }
+      }
+    },
+    "constructInfo": {
+      "fqn": "aws-cdk-lib.App",
+      "version": "2.184.1"
+    }
+  }
+}
