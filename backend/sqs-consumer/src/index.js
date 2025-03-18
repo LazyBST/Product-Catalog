@@ -546,49 +546,68 @@ async function updateDatabase(pool, data) {
     await client.query('BEGIN');
     console.log('[DEBUG] Started database transaction');
     
-    const query = `
-      INSERT INTO product_list_meta (
-        company_id, 
-        product_list_id, 
-        file_path, 
-        batched_files_path, 
-        file_status, 
-        total_batches, 
-        processed_batches, 
-        error, 
-        updated_at
-      )
-      SELECT $1, $2, $3, $4, $5, $6, $7, $8, EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::BIGINT
-      WHERE NOT EXISTS (
-        SELECT 1 FROM product_list_meta 
-        WHERE company_id = $1 AND product_list_id = $2
-      );
-      
-      UPDATE product_list_meta SET
-        file_path = COALESCE($3, file_path),
-        batched_files_path = COALESCE($4, batched_files_path),
-        file_status = COALESCE($5, file_status),
-        total_batches = COALESCE($6, total_batches),
-        processed_batches = COALESCE($7, processed_batches),
-        error = $8,
-        updated_at = EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::BIGINT
+    // First check if the record exists
+    const checkQuery = `
+      SELECT * FROM product_list_meta 
       WHERE company_id = $1 AND product_list_id = $2
-      RETURNING *;
     `;
     
-    // Create a values array with only the fields that are provided
-    const values = [
-      data.company_id,
-      data.product_list_id,
-      data.file_path,
-      data.batched_files_path,
-      data.file_status,
-      data.total_batches !== undefined ? data.total_batches : null,
-      data.processed_batches !== undefined ? data.processed_batches : null,
-      data.error
-    ];
+    const checkResult = await client.query(checkQuery, [data.company_id, data.product_list_id]);
     
-    const result = await client.query(query, values);
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Record doesn't exist, do an insert
+      const insertQuery = `
+        INSERT INTO product_list_meta (
+          company_id, 
+          product_list_id, 
+          file_path, 
+          batched_files_path, 
+          file_status, 
+          total_batches, 
+          processed_batches, 
+          error, 
+          updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::BIGINT)
+        RETURNING *;
+      `;
+      
+      result = await client.query(insertQuery, [
+        data.company_id,
+        data.product_list_id,
+        data.file_path,
+        data.batched_files_path,
+        data.file_status,
+        data.total_batches !== undefined ? data.total_batches : null,
+        data.processed_batches !== undefined ? data.processed_batches : null,
+        data.error
+      ]);
+    } else {
+      // Record exists, do an update
+      const updateQuery = `
+        UPDATE product_list_meta SET
+          file_path = COALESCE($3, file_path),
+          batched_files_path = COALESCE($4, batched_files_path),
+          file_status = COALESCE($5, file_status),
+          total_batches = COALESCE($6, total_batches),
+          processed_batches = COALESCE($7, processed_batches),
+          error = $8,
+          updated_at = EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::BIGINT
+        WHERE company_id = $1 AND product_list_id = $2
+        RETURNING *;
+      `;
+      
+      result = await client.query(updateQuery, [
+        data.company_id,
+        data.product_list_id,
+        data.file_path,
+        data.batched_files_path,
+        data.file_status,
+        data.total_batches !== undefined ? data.total_batches : null,
+        data.processed_batches !== undefined ? data.processed_batches : null,
+        data.error
+      ]);
+    }
     
     await client.query('COMMIT');
     console.log('[DEBUG] Database transaction committed');

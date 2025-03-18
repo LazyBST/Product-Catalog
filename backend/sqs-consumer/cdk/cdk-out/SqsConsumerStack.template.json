@@ -94,7 +94,7 @@
    "Properties": {
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-869935084697-ap-south-1",
-     "S3Key": "73de256d2d672be6548b0cbdb8854fcca22de5a25c9d878d85effd856599b5e9.zip"
+     "S3Key": "3eaa5a4c58bf6bb0b7371f42bc8c0295c29bc268aa4af7772272fc9762e2570c.zip"
     },
     "Environment": {
      "Variables": {
@@ -119,7 +119,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "SqsConsumerStack/SqsConsumerFunction/Resource",
-    "aws:asset:path": "asset.73de256d2d672be6548b0cbdb8854fcca22de5a25c9d878d85effd856599b5e9",
+    "aws:asset:path": "asset.3eaa5a4c58bf6bb0b7371f42bc8c0295c29bc268aa4af7772272fc9762e2570c",
     "aws:asset:is-bundled": false,
     "aws:asset:property": "Code"
    }
