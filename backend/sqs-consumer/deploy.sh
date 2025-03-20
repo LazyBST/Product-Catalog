@@ -35,7 +35,8 @@ cat > "$DEPLOY_DIR/package.json" << 'EOF'
   "dependencies": {
     "csv-parser": "^3.0.0",
     "csv-writer": "^1.6.0",
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "aws-sdk": "^2.1615.0"
   }
 }
 EOF

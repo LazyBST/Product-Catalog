@@ -21,11 +21,11 @@ router.post('/product-list/share/upload', authenticateToken, productListControll
 
 // Products routes - public access for viewing products
 router.get('/product-list/:productListId/products', productsController.getProductsByListId);
-router.get('/product-list/:productListId/products/:productId', productsController.getProductById);
+router.get('/product-list/:productListId/products/:productId', authenticateToken, productsController.getProductById);
 
 // Product modification routes - public access with company_id parameter
-router.post('/product-list/:productListId/products', productsController.createProduct);
-router.put('/product-list/:productListId/products/:productId', productsController.updateProduct);
+router.post('/product-list/:productListId/products', authenticateToken, productsController.createProduct);
+router.put('/product-list/:productListId/products/:productId', authenticateToken, productsController.updateProduct);
 
 // Protected product routes
 router.put('/product-list/:productListId/products/global/enrich', authenticateToken, productsController.enrichProducts);

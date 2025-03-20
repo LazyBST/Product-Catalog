@@ -394,7 +394,8 @@ For fields with multiple options, select the most appropriate one based on the p
         const fieldData = {};
         fieldsResult.rows.forEach((field, index) => {
           if (index < values.length) {
-            fieldData[field.id] = values[index];
+            // remove quotes from the value
+            fieldData[field.id] = values[index].replace(/^"(.*)"$/, '$1').trim();
           }
         });
 

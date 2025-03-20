@@ -484,8 +484,8 @@ const suggestAttributes = async (req, res) => {
           // The rest is options
           const optionsString = match[5].trim();
           
-          // Split options by comma, but respect quoted strings
-          const options = optionsString.split(',').map(opt => opt.trim()).filter(opt => opt);
+          // Split options by comma, but respect quoted strings and remove quotes
+          const options = optionsString.split(',').map(opt => opt.trim().replace(/^"(.*)"$/, '$1')).filter(opt => opt);
           
           suggestedAttributes.push({
             name,

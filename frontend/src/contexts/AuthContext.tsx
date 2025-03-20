@@ -14,6 +14,7 @@ interface AuthContextType {
   companyName: string | null;
   userType: string | null;
   user: User | null;
+  loading: boolean;
   setAuthState: (loggedIn: boolean, name: string | null, company: string | null, userType: string | null) => void;
   logout: () => void;
 }
@@ -24,6 +25,7 @@ const AuthContext = createContext<AuthContextType>({
   companyName: null,
   userType: null,
   user: null,
+  loading: true,
   setAuthState: () => {},
   logout: () => {},
 });
@@ -36,6 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [userType, setUserType] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Check if user is logged in on mount
@@ -58,6 +61,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
     }
+    
+    // Set loading to false after auth check is complete
+    setLoading(false);
   }, []);
 
   const logout = () => {
@@ -70,6 +76,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const setAuthState = (loggedIn: boolean, name: string | null, company: string | null, type: string | null) => {
+    setLoading(true);
+
     setIsLoggedIn(loggedIn);
     setUserName(name);
     setCompanyName(company);
@@ -98,10 +106,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('userType');
       localStorage.removeItem('token');
     }
+    
+    setLoading(false);
   };
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, userName, companyName, userType, user, setAuthState, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn, userName, companyName, userType, user, loading, setAuthState, logout }}>
       {children}
     </AuthContext.Provider>
   );

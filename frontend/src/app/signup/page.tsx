@@ -5,10 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Container, Box, Typography, TextField, Button, Alert, CircularProgress } from '@mui/material';
 import Link from 'next/link';
 import api from '@/services/api';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth as useAuthHook } from '@/hooks/useAuth';
+import { useAuth as useAuthContext } from "@/contexts/AuthContext";
 
 const SignUp = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuthHook();
+  const { setAuthState } = useAuthContext();
   const router = useRouter();
   const searchParams = useSearchParams();
   const inviteCode = searchParams.get('inviteCode');
@@ -96,7 +98,7 @@ const SignUp = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     if (inviteCode && !inviteCodeValid) {
       setError('Cannot sign up with an invalid invite code');
       return;
@@ -113,10 +115,23 @@ const SignUp = () => {
         inviteCode: inviteCode || undefined
       });
 
+      console.log(response);
+
       if (response.success) {
+
+        // set auth state
+        setAuthState(
+          true,
+          response.data.user.name,
+          response.data.user.company_name,
+          response.data.user.user_type || "COMPANY_USER"
+        );
+
         // Preserve all query parameters when redirecting
         const queryParams = new URLSearchParams(window.location.search);
+        console.log(queryParams);
         const redirectUrl = queryParams?.toString() ? `/dashboard?${queryParams?.toString()}` : '/dashboard';
+        console.log(redirectUrl);
         router.push(redirectUrl);
       } else {
         setError(response.errMsg || 'Signup failed');

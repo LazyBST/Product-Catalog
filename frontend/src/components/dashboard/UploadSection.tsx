@@ -98,6 +98,7 @@ const UploadSection = () => {
       }
       
       setFile(selectedFile);
+      fetchProductLists();
       setError(null);
     }
   };
@@ -275,7 +276,7 @@ const UploadSection = () => {
   };
 
   return (
-    <Paper sx={{ width: '100%', p: 4 }}>
+    <Paper sx={{ width: '100%', p: 4, my: 4 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
         <Typography variant="h6" fontWeight="bold">
           Upload File
@@ -299,6 +300,10 @@ const UploadSection = () => {
         
         <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 2 }}>
           Maximum file size: 100MB or 1 million rows
+        </Typography>
+
+        <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 2 }}>
+          Rows with missing name and barcode fields and duplicate barcodes will be skipped
         </Typography>
         
         <Button

@@ -31,12 +31,12 @@ const RouteGuard = ({ children }: { children: React.ReactNode }) => {
         // Redirect to login page if not authenticated and trying to access a protected route
         // attach whatever query params are in the url to the redirect url
         const queryParams = new URLSearchParams(window.location.search);
-        const redirectUrl = `/login?${queryParams.toString()}`;
+        const redirectUrl = `/login?${queryParams?.toString()}`;
         router.push(redirectUrl);
       } else if (isLoggedIn && isPublicPath()) {
         // Redirect to dashboard if authenticated and trying to access public routes
         // preserve any query parameters like inviteCode when redirecting
-        const queryParams = searchParams.toString();
+        const queryParams = searchParams?.toString();
         const redirectUrl = queryParams ? `/dashboard?${queryParams}` : '/dashboard';
         router.push(redirectUrl);
       }

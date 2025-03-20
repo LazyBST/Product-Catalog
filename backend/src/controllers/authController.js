@@ -127,7 +127,7 @@ const signup = async (req, res) => {
     }
 
     let companyId = null;
-    let userType = "COMPANY_USER"; // Default user type - uppercase to match enum
+    let userType = inviteCode ? "CUSTOMER" : "COMPANY_USER";
     let companyName = company_name;
 
     // Start transaction

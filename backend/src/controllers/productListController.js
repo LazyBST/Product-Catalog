@@ -142,7 +142,7 @@ const getProductListPipeline = async (req, res) => {
       WHERE 
         pl.company_id = $1
       ORDER BY 
-        plm.last_processed_at DESC NULLS LAST
+        plm.created_at DESC NULLS LAST
     `;
 
     const result = await pool.query(query, [companyId]);

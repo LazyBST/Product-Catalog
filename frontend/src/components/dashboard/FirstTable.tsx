@@ -111,7 +111,7 @@ const FirstTable = () => {
     const currentOrigin = window.location.origin;
     
     // Get company id from local storage - this is set in the products page
-    const companyId = localStorage.getItem('sharedCompanyId');
+    const companyId = localStorage.getItem('companyId') || localStorage.getItem('company_id');
     
     // Add company_id as query parameter
     const shareLink = `${currentOrigin}/products/${id}/${encodeURIComponent(listName)}?company_id=${companyId}`;

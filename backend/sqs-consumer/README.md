@@ -27,3 +27,7 @@ To deploy the Lambda function:
 
 - AWS SDK: For interacting with AWS services
 - AWS CDK: For defining and deploying infrastructure 
+
+
+r03bSjwTpmvTdj7gNNpT
+my-vpc-fixed-cluster.cluster-ctwc6g2wmko3.ap-south-1.rds.amazonaws.com

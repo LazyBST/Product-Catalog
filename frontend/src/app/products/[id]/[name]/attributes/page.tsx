@@ -232,11 +232,17 @@ export default function AttributesPage() {
         );
         
         if (response && response.success) {
-          setAttributes(prev => 
-            prev.map(attr => 
-              attr.id === selectedAttribute.id ? response.data : attr
-            )
-          );
+          // setAttributes(prev => 
+          //   prev.map(attr => 
+          //     attr.id === selectedAttribute.id ? response.data : attr
+          //   )
+          // );
+
+          // Fetch all attributes again
+          const refreshResponse = await api.getAttributes(productListId, companyId);
+          if (refreshResponse.success) {
+            setAttributes(refreshResponse.data.customAttributes);
+          }
         }
       }
       

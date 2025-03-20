@@ -16,30 +16,30 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function Dashboard() {
-  const { isLoggedIn, user } = useAuth();
+  const { isLoggedIn, user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const inviteCode = searchParams.get("inviteCode");
   const [redirecting, setRedirecting] = useState(false);
 
-  // Redirect to login if not authenticated
+  // Redirect to login if not authenticated, but only after auth state is confirmed
   useEffect(() => {
-    if (!isLoggedIn) {
+    if (!loading && !isLoggedIn) {
       router.push("/login");
     }
-  }, [isLoggedIn, router]);
+  }, [isLoggedIn, router, loading]);
 
   // Handle invite code
   useEffect(() => {
     // If there's an invite code and user is not logged in, redirect to signup
-    if (inviteCode && !isLoggedIn) {
+    if (inviteCode && !loading && !isLoggedIn) {
       setRedirecting(true);
       router.push(`/signup?inviteCode=${inviteCode}`);
     }
-  }, [inviteCode, isLoggedIn, router]);
+  }, [inviteCode, isLoggedIn, router, loading]);
 
   // Show loading while checking auth or redirecting
-  if (!isLoggedIn || redirecting) {
+  if (loading || (!isLoggedIn && !loading) || redirecting) {
     return (
       <Container maxWidth="lg">
         <Box sx={{ mt: 4, mb: 2, display: "flex", justifyContent: "center" }}>

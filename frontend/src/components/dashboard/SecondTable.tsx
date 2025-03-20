@@ -44,7 +44,7 @@ const SecondTable = () => {
     <Paper sx={{ width: '100%', mb: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2 }}>
         <Typography variant="h6" fontWeight="bold">
-          Batches
+          Uploaded Files Details
         </Typography>
         <IconButton onClick={handleRefresh} disabled={loading}>
           {loading ? <CircularProgress size={24} /> : <RefreshIcon />}
@@ -63,7 +63,9 @@ const SecondTable = () => {
               <TableCell sx={{ fontWeight: 'bold' }}>Total batches</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Processed batches</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Last processed at</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Created at</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Errors</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -83,10 +85,12 @@ const SecondTable = () => {
               data.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell>{row.listName}</TableCell>
-                  <TableCell>{row.total_batches || 0}</TableCell>
-                  <TableCell>{row.processed_batches || 0}</TableCell>
-                  <TableCell>{formatDate(row.last_processed_at)}</TableCell>
+                  <TableCell>{row.totalBatches || 0}</TableCell>
+                  <TableCell>{row.processedBatches || 0}</TableCell>
+                  <TableCell>{formatDate(row.lastProcessedAt)}</TableCell>
+                  <TableCell>{row.fileStatus}</TableCell>
                   <TableCell>{formatDate(row.createdAt)}</TableCell>
+                  <TableCell>{row.error}</TableCell>
                 </TableRow>
               ))
             )}

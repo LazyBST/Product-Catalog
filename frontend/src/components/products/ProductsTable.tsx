@@ -1152,7 +1152,7 @@ const ProductsTable = ({ productListId, productListName, companyId: propCompanyI
                   <TableSortLabel
                     active={sortOptions.sortField === `custom_${attr.id}`}
                     direction={sortOptions.sortField === `custom_${attr.id}` ? sortOptions.sortOrder?.toLowerCase() as 'asc' | 'desc' : 'asc'}
-                    onClick={() => handleSort(`custom_${attr.id}`, true)}
+                    onClick={() => handleSort(attr.id.toString(), true)}
                     disabled={!attr.is_sortable}
                   >
                     {attr.field_name}

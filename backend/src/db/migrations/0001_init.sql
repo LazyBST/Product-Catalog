@@ -229,6 +229,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- First, enable the pg_trgm extension if not already enabled
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 -- Function to create or refresh indexes per company partition
 CREATE OR REPLACE FUNCTION manage_product_ai_indexes() RETURNS TRIGGER AS $$
 DECLARE
@@ -236,12 +239,12 @@ DECLARE
     index_name_btree TEXT;
 BEGIN
     index_name_gin := format('idx_product_ai_field_values_gin_%s_%s', NEW.company_id, NEW.id);
-    index_name_btree := format('idx_product_ai_field_values_btree_%s_%I', NEW.company_id, NEW.id);
+    index_name_btree := format('idx_product_ai_field_values_btree_%s_%s', NEW.company_id, NEW.id);
 
-    -- Create or refresh GIN index if is_sortable is true, else drop the index
-    IF NEW.is_sortable THEN
+    -- Create or refresh GIN index if is_filterable is true, else drop the index
+    IF NEW.is_filterable THEN
         EXECUTE format(
-            'CREATE INDEX IF NOT EXISTS %s ON product_ai_field_values_%s USING gin ((data->>''%I''))',
+            'CREATE INDEX IF NOT EXISTS %s ON product_ai_field_values_%s USING gin ((data->>''%s'') gin_trgm_ops)',
             index_name_gin, NEW.company_id, NEW.id
         );
     ELSE
@@ -251,10 +254,10 @@ BEGIN
         );
     END IF;
 
-    -- Create or refresh BTREE index if is_filterable is true, else drop the index
-    IF NEW.is_filterable THEN
+    -- Create or refresh BTREE index if is_sortable is true, else drop the index
+    IF NEW.is_sortable THEN
         EXECUTE format(
-            'CREATE INDEX IF NOT EXISTS %s ON product_ai_field_values_%s USING btree ((data->>''%I''))',
+            'CREATE INDEX IF NOT EXISTS %s ON product_ai_field_values_%s USING btree ((data->>''%s''))',
             index_name_btree, NEW.company_id, NEW.id
         );
     ELSE

@@ -21,6 +21,7 @@ export interface User {
   companyId: number;
   company_name: string;
   user_type: string;
+  company_id: number;
 }
 
 export interface AuthResponse {
@@ -43,10 +44,12 @@ export interface ProductList {
 export interface ProductPipeline {
   id: number;
   listName: string;
-  total_batches: number | null;
-  processed_batches: number | null;
-  last_processed_at: number | null;
+  totalBatches: number | null;
+  processedBatches: number | null;
+  lastProcessedAt: number | null;
   createdAt: number;
+  fileStatus: string;
+  error: string;
 }
 
 export interface CreateProductListRequest {
@@ -208,9 +211,9 @@ const signup = async (data: SignupRequest): Promise<ApiResponse<AuthResponse>> =
     // Store token and user data in localStorage
     if (response.data.success && response.data.data.token) {
       localStorage.setItem('token', response.data.data.token);
-      localStorage.setItem('userId', response.data.data.user.id.toString());
+      localStorage.setItem('userId', response.data.data.user.id?.toString());
       localStorage.setItem('userName', response.data.data.user.name);
-      localStorage.setItem('companyId', response.data.data.user.companyId.toString());
+      localStorage.setItem('companyId', response.data.data.user.company_id?.toString());
       localStorage.setItem('companyName', response.data.data.user.company_name);
       
       // Save user type if available
