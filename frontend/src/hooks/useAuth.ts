@@ -33,6 +33,7 @@ export function useAuth() {
         setUser(userData);
         setIsAuthenticated(true);
       } catch (error) {
+        console.error('Error in useAuth:', error);
         // Invalid user data in localStorage
         localStorage.removeItem('token');
       }
@@ -65,6 +66,7 @@ export function useAuth() {
         return { success: false, error: response.errMsg };
       }
     } catch (error) {
+      console.error('Error in login:', error);
       return { success: false, error: 'Login failed' };
     } finally {
       setLoading(false);

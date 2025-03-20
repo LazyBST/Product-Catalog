@@ -199,7 +199,7 @@ export default function AttributesPage() {
         const createData: AttributeCreateRequest = {
           name: selectedAttribute.name,
           group: selectedAttribute.group,
-          type: selectedAttribute.type,
+          type: selectedAttribute.type as 'text' | 'number' | 'single_select' | 'multiple_select',
           options: selectedAttribute.options,
           prompt: selectedAttribute.prompt,
           isAiEnriched: selectedAttribute.isAiEnriched,
@@ -209,15 +209,15 @@ export default function AttributesPage() {
         
         response = await api.createAttribute(productListId, createData);
         
-        if (response && response.success) {
-          setAttributes(prev => [...prev, response.data]);
+        if (response && response.success && response.data) {
+          setAttributes(prev => [...prev, response!.data]);
         }
       } else if (typeof selectedAttribute.id === 'number') {
         // Updating existing attribute
         const updateData: AttributeUpdateRequest = {
           name: selectedAttribute.name,
           group: selectedAttribute.group,
-          type: selectedAttribute.type,
+          type: selectedAttribute.type as 'text' | 'number' | 'single_select' | 'multiple_select',
           options: selectedAttribute.options,
           prompt: selectedAttribute.prompt,
           isAiEnriched: selectedAttribute.isAiEnriched,
