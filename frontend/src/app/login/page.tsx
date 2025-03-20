@@ -80,16 +80,16 @@ export default function LoginPage() {
   };
 
   const handleGuestLogin = async () => {
-    setUsername("guest_user");
-    setPassword("guest_password");
+    setUsername("guest");
+    setPassword("guestpassword");
 
     setLoading(true);
     setError("");
 
     try {
       const response = await api.login({
-        username: "guest_user",
-        password: "guest_password",
+        username: "guest",
+        password: "guestpassword",
       });
 
       console.log("Guest login successful with inviteCode:", inviteCode);
