@@ -234,7 +234,7 @@ const FirstTable = () => {
                       {row.listName}
                     </Link>
                   </TableCell>
-                  <TableCell>{formatDate(row.created_at)}</TableCell>
+                  <TableCell>{formatDate(row.createdAt)}</TableCell>
                   <TableCell align="center">
                     <IconButton>
                       <UploadIcon onClick={() => handleShareUpload(row.id)}/>

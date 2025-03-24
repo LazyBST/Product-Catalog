@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS product_ai_fields (
     updated_at BIGINT DEFAULT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::BIGINT,
     deleted_at BIGINT,
     PRIMARY KEY (id, company_id),
-    UNIQUE (company_id, field_name)
+    UNIQUE (company_id, product_list_id, field_name)
 );
 
 -- Table to store AI-enriched values in JSONB (non-partitioned)
